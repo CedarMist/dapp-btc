@@ -1,0 +1,7 @@
+bin
+./dist/
+./build/
+.mypy_cache
+*.egg-info
+build/
+dist/
