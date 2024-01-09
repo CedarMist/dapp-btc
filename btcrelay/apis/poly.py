@@ -51,12 +51,20 @@ class PolyAPI:
 
         self._bitcoinrpc = BitcoinJsonRpc(btc_rpc_url)
 
-        LOGGER.debug('%s node.uptime:%.02f url:%s',
-                     self._chain,
-                     self._bitcoinrpc.uptime() / 60 / 60 / 24,
-                     btc_rpc_url)
+        if not self._chain.startswith('doge-'):
+            LOGGER.debug('%s node.uptime:%.02f url:%s',
+                        self._chain,
+                        self._bitcoinrpc.uptime() / 60 / 60 / 24,
+                        btc_rpc_url)
+        else:
+            info = self._bitcoinrpc.doge_getinfo()
+            LOGGER.debug('%s version:%d proto:%d url:%s',
+                        self._chain,
+                        info['version'],
+                        info['protocolversion'],
+                        btc_rpc_url)
 
-    def getheader(self, block_hash:str):
+    def getheader(self, block_hash:str|bytes):
         return self._bitcoinrpc.getblockheader(block_hash)
 
     def height(self) -> int:

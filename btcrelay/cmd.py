@@ -47,6 +47,7 @@ class Cmd(Namespace):
         args.dcim = DeployedContractInfoManager(args.chain, args.sapphire)
 
         # Setup bitcoin utils
+        """
         if args.chain == 'btc-mainnet':
             bitcoinutils_setup('mainnet')
         elif args.chain == 'btc-signet':
@@ -55,6 +56,7 @@ class Cmd(Namespace):
             bitcoinutils_setup('testnet')
         else:
             raise RuntimeError(f'Unknown chain: {args.chain}')
+        """
 
         # Configure Sapphire Web3.py
         if not args.sapphire_rpc:

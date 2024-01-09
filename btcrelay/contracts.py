@@ -29,6 +29,8 @@ def sapphire_chain_name(chain_id:int) -> str:
 
 @enum.unique
 class ContractChoice(StrEnum):
+    LTCRelay = 'LTCRelay'
+    DogeRelay = 'DogeRelay'
     BTCRelay = 'BTCRelay'
     BTCDeposit = 'BTCDeposit'
     BtcTxVerifier = 'BtcTxVerifier'
@@ -92,6 +94,26 @@ class DeployedContractInfoManager:
 
     def _deployment_file(self) -> Traversable:
         return DEPLOYMENTS_DIR.joinpath(f'{self._chain}.sapphire-{self._sapphire}.json')
+
+    def token_name(self) -> CONTRACT_NAME_T:
+        if self._chain.startswith('btc-'):
+            return 'LiquidBTC'
+        elif self._chain.startswith('doge-'):
+            return 'LiquidDOGE'
+        elif self._chain.startswith('ltc-'):
+            return 'LiquidLTC'
+        else:
+            raise RuntimeError(f'Unknown liquid token name for chain! {self._chain}')
+
+    def relay_name(self) -> CONTRACT_NAME_T:
+        if self._chain.startswith('btc-'):
+            return 'BTCRelay'
+        elif self._chain.startswith('doge-'):
+            return 'DogeRelay'
+        elif self._chain.startswith('ltc-'):
+            return 'LTCRelay'
+        else:
+            raise RuntimeError(f'Unknown relay name for chain! {self._chain}')
 
     def load(self) -> dict[CONTRACT_NAME_T,ContractInfo]:
         fn = self._deployment_file()

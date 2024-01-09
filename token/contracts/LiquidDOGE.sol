@@ -6,16 +6,16 @@ import {IERC20Metadata} from "../../interfaces/IERC20Metadata.sol";
 import {IBTCDeposit} from "../../interfaces/IBTCDeposit.sol";
 import {AbstractLiquidToken} from './lib/AbstractLiquidToken.sol';
 
-contract LiquidBTC is AbstractLiquidToken, IERC20Metadata
+contract LiquidDOGE is AbstractLiquidToken, IERC20Metadata
 {
     // Denominations are powers of 2, we allow 15 unique denominations
     // Values below the minimum denomination are 'change' or 'dust' and are ignored
-    uint256 constant private MIN_SHL = 13;
-    uint256 constant private MAX_SHL = 27;
-    uint256 constant private MIN_DENOMINATION = 1<<MIN_SHL;                                 // 0.00008192 BTC,               0b10000000000000,    0x2000
-    uint256 constant private MAX_DENOMINATION = 1<<MAX_SHL;                                 // 1.34217728 BTC, 0b1000000000000000000000000000, 0x8000000
-    uint256 constant private CHANGE_MASK = MIN_DENOMINATION-1;                              // 0.00008191 BTC,                0b1111111111111,    0x1fff
-    uint256 constant private DENOMINATION_MASK = ((MAX_DENOMINATION<<1)-1) ^ CHANGE_MASK;   // 2.68427264 BTC, 0b1111111111111110000000000000, 0xfffe000
+    uint256 constant private MIN_SHL = 32;
+    uint256 constant private MAX_SHL = 46;
+    uint256 constant private MIN_DENOMINATION = 1<<MIN_SHL;                                 //      42.94967296 DOGE,               0b100000000000000000000000000000000,    0x100000000
+    uint256 constant private MAX_DENOMINATION = 1<<MAX_SHL;                                 //  703687.44177664 DOGE, 0b10000000000000000000000000000000000000000000000, 0x400000000000
+    uint256 constant private CHANGE_MASK = MIN_DENOMINATION-1;                              //      42.94967295 DOGE,                0b11111111111111111111111111111111,     0xffffffff
+    uint256 constant private DENOMINATION_MASK = ((MAX_DENOMINATION<<1)-1) ^ CHANGE_MASK;   // 1407331.93388032 DOGE, 0b11111111111111100000000000000000000000000000000, 0x7fff00000000
     uint256 constant private DENOM_MASK_BIT_COUNT = (MAX_SHL+1)-MIN_SHL;                    // 15 == bin(DENOMINATION_MASK).count('1')
 
     function _getDenominationMask() override internal pure returns (uint256)
@@ -52,7 +52,7 @@ contract LiquidBTC is AbstractLiquidToken, IERC20Metadata
         external pure
         returns (string memory)
     {
-        return "Liquid Bitcoin";
+        return "Liquid Dogecoin";
     }
 
     // IERC20Metadata
@@ -60,7 +60,7 @@ contract LiquidBTC is AbstractLiquidToken, IERC20Metadata
         external pure
         returns (string memory)
     {
-        return "liquidBTC";
+        return "liquidDOGE";
     }
 
     // IERC20Metadata

@@ -48,7 +48,8 @@ DEFAULT_SAPPHIRE_RPC_URLS: dict[SAPPHIRE_CHAIN_T,str] = {
     'testnet': 'https://testnet.sapphire.oasis.dev'
 }
 
-CONTRACT_NAME_T = Literal['BTCRelay', 'BtcTxVerifier', 'DogeRelay', 'LTCRelay','BTCDeposit','Helper','LiquidBTC']
+CONTRACT_NAME_T = Literal['BTCRelay', 'BtcTxVerifier', 'DogeRelay', 'LTCRelay','BTCDeposit','Helper','LiquidBTC','LiquidDOGE','LiquidLTC']
+CONTRACT_NAMES: Tuple[CONTRACT_NAME_T, ...] = typing.get_args(CONTRACT_NAME_T)
 
 DEFAULT_WALLET=os.getenv('BTCRELAY_WALLET', '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80')
 DEFAULT_BTCRPC=os.getenv('BTCRELAY_BTCRPC', None)

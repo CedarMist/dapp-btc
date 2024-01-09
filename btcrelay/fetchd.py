@@ -1,6 +1,5 @@
 # SPDX-License-Identifier: Apache-2.0
 
-import json
 from time import sleep
 from typing import Optional
 from io import TextIOWrapper
@@ -8,10 +7,8 @@ from argparse import ArgumentParser, FileType
 
 from web3 import Web3
 from eth_typing import ChecksumAddress
-from eth_utils.address import to_checksum_address
 
 from .cmd import Cmd
-from .contracts import ContractInfo
 from .apis.bitcoinrpc import BitcoinJsonRpc_getblock_t
 from .bitcoin import bytes2revhex
 from .constants import (
@@ -42,7 +39,8 @@ class CmdFetchd(Cmd):
                             default=DEFAULT_BTCRELAY_ADDR)
 
     def __call__(self):
-        relay = self.dcim.contract_instance('BTCRelay', self.web3)
+        relay_name = self.dcim.relay_name()
+        relay = self.dcim.contract_instance(relay_name, self.web3)
         getLatestBlockHeight = relay.functions.getLatestBlockHeight
         getBlockHash = relay.functions.getBlockHashReversed
         submit = relay.functions.submit
@@ -54,11 +52,11 @@ class CmdFetchd(Cmd):
                 btcHeight = self.poly.height()
                 btcTipHash = self.poly.height2hash(btcHeight)
 
-                LOGGER.debug('BTCRelay height %d (%s)',
-                             contractHeight, bytes2revhex(contractHash))
+                LOGGER.debug('%s height %d (%s)',
+                             relay_name, contractHeight, bytes2revhex(contractHash))
 
-                LOGGER.debug('BTC height %d (%s)',
-                             btcHeight, bytes2revhex(btcTipHash))
+                LOGGER.debug('%s height %d (%s)',
+                             self.chain, btcHeight, bytes2revhex(btcTipHash))
 
                 if contractHeight == btcHeight and contractHash == btcTipHash:
                     LOGGER.debug('No blocks to sync, sleeping %d seconds',

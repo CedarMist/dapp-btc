@@ -22,7 +22,7 @@ clean: python-clean
 
 python-clean:
 	rm -rf *.egg-info dist build .mypy_cache
-	rm -rf $(PYMOD)/__pycache__ $(PYMOD)/abi/__pycache__
+	rm -rf $(PYMOD)/__pycache__ $(PYMOD)/abi/__pycache__ $(PYMOD)/deployments/__pycache__
 
 veryclean: clean
 	rm -rf "$(dir $(SOLC))"
@@ -30,13 +30,17 @@ veryclean: clean
 python-wheel: python-clean $(SUBPROJS)
 	$(PYTHON) setup.py -q bdist_wheel
 
-BTC_TESTNET_SAPPHIRE_LOCALNET_JSON=$(PYMOD)/deployments/btc-testnet.sapphire-localnet.json
-
-$(BTC_TESTNET_SAPPHIRE_LOCALNET_JSON): $(SOLIDITY_SOURCES)
+debug-btc:
 	$(PYTHON) -m$(PYMOD) deploy -y --sapphire localnet --chain btc-testnet --loglevel debug
-
-debug-btc: $(BTC_TESTNET_SAPPHIRE_LOCALNET_JSON)
 	$(PYTHON) -m$(PYMOD) fetchd --sapphire localnet --chain btc-testnet --loglevel debug
+
+debug-ltc:
+	$(PYTHON) -m$(PYMOD) deploy -y --sapphire localnet --chain ltc-mainnet --loglevel debug
+	$(PYTHON) -m$(PYMOD) fetchd --sapphire localnet --chain ltc-mainnet --loglevel debug
+
+debug-doge:
+	$(PYTHON) -m$(PYMOD) deploy -y --sapphire localnet --chain doge-mainnet --loglevel debug
+	$(PYTHON) -m$(PYMOD) fetchd --sapphire localnet --chain doge-mainnet --loglevel debug
 
 debug: $(SUBPROJS) debug-btc
 

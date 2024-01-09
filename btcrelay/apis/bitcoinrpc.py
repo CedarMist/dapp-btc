@@ -99,6 +99,9 @@ class BitcoinJsonRpc:
     def getblockhash(self, height:int) -> bytes:
         return hex2revbytes(self._request('getblockhash', [height]))
 
+    def doge_getinfo(self):
+        return self._request('getinfo')
+
     def getrawtransaction(self, txid:str, blockhash:Optional[str]=None) -> bytes:
         return self._request('getrawtransaction', [txid, False, blockhash])
 

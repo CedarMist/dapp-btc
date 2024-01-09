@@ -11,7 +11,7 @@ from web3.utils.address import get_create_address
 
 from .cmd import Cmd
 from .bitcoin import bytes2revhex
-from .constants import CONTRACT_NAME_T, DEFAULT_GAS_PRICE, LOGGER, __LINE__
+from .constants import CONTRACT_NAME_T, DEFAULT_GAS_PRICE, LOGGER, __LINE__, CONTRACT_NAMES
 from .contracts import ContractChoice, DeployedInfo, ContractInfo
 
 
@@ -19,7 +19,7 @@ class CmdDeploy(Cmd):
     yes: bool
     start_height: int
     gasprice: Optional[int]
-    components: list[ContractChoice] | set[ContractChoice]
+    components: list[CONTRACT_NAME_T] | set[CONTRACT_NAME_T]
 
     @classmethod
     def setup(cls, parser: ArgumentParser):
@@ -62,43 +62,42 @@ class CmdDeploy(Cmd):
                 return __LINE__
 
         if not self.components:
-            self.components = set(list(ContractChoice))
+            self.components = set(CONTRACT_NAMES)
 
-        if self.chain.startswith('btc-'):
-            if ContractChoice.BTCRelay in self.components:
-                block_hash = self.poly.height2hash(self.start_height)
-                block = self.poly.getheader(block_hash)
-                LOGGER.info('BTCRelay height: %d (%s)', self.start_height, bytes2revhex(block_hash))
-                constructor_args = [
-                    '0x' + block['hash'].hex(),
-                    block['height'],
-                    block['time'],
-                    block['bits'],
-                    self.is_testnet
-                ]
-                BTCRelay = self.dcim.contract_factory('BTCRelay', self.web3)
-                btcrelay_tx: TxParams = BTCRelay.constructor(*constructor_args).build_transaction({
-                    'gasPrice': self.gasprice
-                })
-                deploy_todo['BTCRelay'] = {
-                    'tx': btcrelay_tx,
-                    'max_fee': btcrelay_tx['gas'] * btcrelay_tx['gasPrice'],
-                    'expected_address': get_create_address(account_address, account_nonce),
-                    'constructor_args': constructor_args,
-                    'account_address': account_address,
-                    'account_nonce': account_nonce,
-                    'deployed': None
-                }
-                account_nonce += 1  # type: ignore
-        else:
-            raise RuntimeError(f'Cannot deploy unsupported chain! {self.chain}')
+        relay_name = self.dcim.relay_name()
+
+        if relay_name in self.components:
+            block_hash = self.poly.height2hash(self.start_height)
+            block = self.poly.getheader(block_hash)
+            LOGGER.info('%s height: %d (%s)', relay_name, self.start_height, bytes2revhex(block_hash))
+            constructor_args = [
+                '0x' + block['hash'].hex(),
+                block['height'],
+                block['time'],
+                block['bits'],
+                self.is_testnet
+            ]
+            BTCRelay = self.dcim.contract_factory(relay_name, self.web3)
+            btcrelay_tx: TxParams = BTCRelay.constructor(*constructor_args).build_transaction({
+                'gasPrice': self.gasprice
+            })
+            deploy_todo[relay_name] = {
+                'tx': btcrelay_tx,
+                'max_fee': btcrelay_tx['gas'] * btcrelay_tx['gasPrice'],
+                'expected_address': get_create_address(account_address, account_nonce),
+                'constructor_args': constructor_args,
+                'account_address': account_address,
+                'account_nonce': account_nonce,
+                'deployed': None
+            }
+            account_nonce += 1  # type: ignore
 
         if ContractChoice.BtcTxVerifier in self.components:
             BtcTxVerifier = self.dcim.contract_factory('BtcTxVerifier', self.web3)
-            if 'BTCRelay' in contract_info:
-                BTCRelay_addr = contract_info['BTCRelay']['expected_address']
+            if relay_name in contract_info:
+                BTCRelay_addr = contract_info[relay_name]['expected_address']
             else:
-                BTCRelay_addr = deploy_todo['BTCRelay']['expected_address']
+                BTCRelay_addr = deploy_todo[relay_name]['expected_address']
             constructor_args = [BTCRelay_addr]
             btctxverifier_tx: TxParams = BtcTxVerifier.constructor(*constructor_args).build_transaction({
                 'gasPrice': self.gasprice
@@ -135,8 +134,9 @@ class CmdDeploy(Cmd):
             }
             account_nonce += 1  # type: ignore
 
-        if ContractChoice.LiquidBTC in self.components:
-            LiquidBTC = self.dcim.contract_factory('LiquidBTC', self.web3)
+        token_name = self.dcim.token_name()
+        if token_name in self.components:
+            LiquidBTC = self.dcim.contract_factory(token_name, self.web3)
             if 'BTCDeposit' in contract_info:
                 BTCDeposit_addr = contract_info['BTCDeposit']['expected_address']
             else:
@@ -145,7 +145,7 @@ class CmdDeploy(Cmd):
             liquidbtc_tx: TxParams = LiquidBTC.constructor(*constructor_args).build_transaction({
                 'gasPrice': self.gasprice
             })
-            deploy_todo['LiquidBTC'] = {
+            deploy_todo[token_name] = {
                 'tx': liquidbtc_tx,
                 'max_fee': liquidbtc_tx['gas'] * liquidbtc_tx['gasPrice'],
                 'expected_address': get_create_address(account_address, account_nonce),
