@@ -1,48 +1,35 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import sys
-import logging
 from typing import Callable, Optional
 from argparse import ArgumentParser, Namespace
 
-from bitcoinutils.setup import setup as bitcoinutils_setup
+from bitcoinutils.setup import setup as bitcoinutils_setup  # type: ignore
 from web3 import Web3
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
 from web3.middleware import construct_sign_and_send_raw_middleware
 
-from .contracts import chain_name
-from .bitcoin import BitcoinJsonRpc, MempoolSpaceAPI, BTC_CHAIN_T
+from .contracts import sapphire_chain_name, DeployedContractInfoManager
 from .constants import (
-    CHAIN_CHOICES, DEFAULT_WALLET, DEFAULT_GETBLOCK_URLS, SAPPHIRE_CHAIN_T,
+    CHAIN_CHOICES, DEFAULT_WALLET, SAPPHIRE_CHAIN_T,
     SAPPHIRE_CHOICES, LOGGER_LEVELS, DEFAULT_SAPPHIRE_RPC_URLS,
-    LOGGER_LEVEL_NAMES_T
+    LOGGER_LEVEL_NAMES_T, LOGGER, BTC_CHAIN_T
 )
-
-class LineImpl(object):
-    def __repr__(self):
-        try:
-            raise Exception
-        except:
-            return str(sys.exc_info()[2].tb_frame.f_back.f_lineno)  # type: ignore
-
-__LINE__ = LineImpl()
-
-
-logging.basicConfig(format='# %(asctime)s %(module)s %(levelname)s:  %(message)s', level=logging.INFO, handlers=[logging.StreamHandler(sys.stderr)])
-LOGGER = logging.getLogger(__name__)
-
+from .apis.poly import PolyAPI
 
 class Cmd(Namespace):
-    logging: LOGGER_LEVEL_NAMES_T
+    loglevel: LOGGER_LEVEL_NAMES_T
     func: Callable[['Cmd'],None]
     web3: Web3
     key: LocalAccount
-    btc: BitcoinJsonRpc
     btc_rpc_url: Optional[str]
-    mempool_space: MempoolSpaceAPI
     chain: BTC_CHAIN_T
     sapphire: SAPPHIRE_CHAIN_T
     sapphire_rpc: str
     is_testnet: bool
+    poly: PolyAPI
+    dcim: DeployedContractInfoManager
 
     @classmethod
     def run(cls, args:'Cmd'):
@@ -51,16 +38,13 @@ class Cmd(Namespace):
         Ensures RPC endpoints & wallets are active etc.
         Then runs the
         """
-        LOGGER.setLevel(LOGGER_LEVELS[args.logging])
+        LOGGER.setLevel(LOGGER_LEVELS[args.loglevel])
 
         args.is_testnet = 'mainnet' not in args.chain
 
-        # Setup mempool.space API
-        if args.chain in ['btc-mainnet', 'btc-testnet']:
-            args.mempool_space = MempoolSpaceAPI(args.chain)
-        else:
-            # TODO: support signet?
-            raise RuntimeError(f'Unknown chain: {args.chain}')
+        args.poly = PolyAPI(args.chain, args.btc_rpc_url)
+
+        args.dcim = DeployedContractInfoManager(args.chain, args.sapphire)
 
         # Setup bitcoin utils
         if args.chain == 'btc-mainnet':
@@ -70,15 +54,7 @@ class Cmd(Namespace):
         elif args.chain == 'btc-testnet':
             bitcoinutils_setup('testnet')
         else:
-            raise RuntimeError(f'Unknown chain: {args.btc_chain}')
-
-        # Setup BTC JSON-RPC
-        if args.btc_rpc_url is None:
-            if args.chain in DEFAULT_GETBLOCK_URLS:
-                args.btc_rpc_url = DEFAULT_GETBLOCK_URLS[args.chain]
-            else:
-                raise RuntimeError(f'Unknown chain: {args.chain}')
-        btc = args.btc = BitcoinJsonRpc(args.btc_rpc_url)
+            raise RuntimeError(f'Unknown chain: {args.chain}')
 
         # Configure Sapphire Web3.py
         if not args.sapphire_rpc:
@@ -91,26 +67,25 @@ class Cmd(Namespace):
         w3.eth.default_account = key.address
 
         # Check ETH API works
-        balance = w3.eth.get_balance(key.address)
+        try:
+            balance = w3.eth.get_balance(key.address)
+        except Exception as ex:
+            LOGGER.exception(f'Unable to fetch balance from Web3 RPC: {args.sapphire_rpc}', exc_info=ex)
+            sys.exit(2)
         if balance == 0:
             LOGGER.error("Error! Account %s has 0 balance", key.address,)
             sys.exit(1)
 
-        LOGGER.debug('%s node.uptime:%.02f url:%s',
-                     args.btc_chain.upper(),
-                     btc.uptime() / 60 / 60 / 24,
-                     args.btc_rpc_url)
-
         chain_id = w3.eth.chain_id
         LOGGER.debug('%s chainId:%d account:%s balance:%s',
-                     chain_name(chain_id), chain_id, key.address,
+                     sapphire_chain_name(chain_id), chain_id, key.address,
                      Web3.from_wei(balance, 'ether'))
 
         return args.func(args)
 
     @classmethod
     def setup(cls, parser:ArgumentParser):
-        parser.add_argument('-l', '--logging', metavar='level',
+        parser.add_argument('--loglevel', metavar='level',
                             choices=LOGGER_LEVELS.keys(), default='info',
                             help="Logging level, don't display below this level (%s)" % (', '.join(LOGGER_LEVELS.keys())))
         parser.add_argument('-k', '--key', metavar='0x...',
@@ -118,8 +93,8 @@ class Cmd(Namespace):
                             type=Account.from_key, default=DEFAULT_WALLET)
         parser.add_argument('--btc-rpc-url', metavar='url', type=str,
                             help='Bitcoin JSON-RPC endpoint (env: BTCRELAY_BTCRPC)')
-        parser.add_argument('--chain', choices=CHAIN_CHOICES, default='btc-mainnet')
-        parser.add_argument('--sapphire', choices=SAPPHIRE_CHOICES, default='sapphire-mainnet')
+        parser.add_argument('--chain', choices=CHAIN_CHOICES, required=True)
+        parser.add_argument('--sapphire', choices=SAPPHIRE_CHOICES, required=True)
         parser.add_argument('--sapphire-rpc', metavar='url',
                             help='Sapphire Ethereum compatible JSON-RPC endpoint (env: BTCRELAY_ETHRPC)')
         parser.set_defaults(func=cls.__call__)

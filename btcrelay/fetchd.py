@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import json
 from time import sleep
 from typing import Optional
@@ -5,13 +7,16 @@ from io import TextIOWrapper
 from argparse import ArgumentParser, FileType
 
 from web3 import Web3
-from eth_typing import Address, ChecksumAddress
+from eth_typing import ChecksumAddress
 from eth_utils.address import to_checksum_address
 
-from .cmd import Cmd, LOGGER, __LINE__
-from .contracts import ContractInfo, contract_instance
-from .bitcoin import BitcoinJsonRpc_getblock_t, bytes2revhex
+from .cmd import Cmd
+from .contracts import ContractInfo
+from .apis.bitcoinrpc import BitcoinJsonRpc_getblock_t
+from .bitcoin import bytes2revhex
 from .constants import (
+    LOGGER,
+    __LINE__,
     DEFAULT_BTCRELAY_ADDR,
     DEFAULT_SLEEP_TIME,
     DEFAULT_GAS_PRICE,
@@ -20,7 +25,7 @@ from .constants import (
 
 
 class CmdFetchd(Cmd):
-    address: Address|ChecksumAddress
+    address: ChecksumAddress
     deploy_file: Optional[TextIOWrapper]
     batch_count: int
 
@@ -37,17 +42,7 @@ class CmdFetchd(Cmd):
                             default=DEFAULT_BTCRELAY_ADDR)
 
     def __call__(self):
-        if self.deploy_file is not None:
-            data: dict[str,ContractInfo] = json.load(self.deploy_file)
-            if 'BTCRelay' not in data:
-                LOGGER.error('BTCRelay not found in deployment info!')
-                return __LINE__
-            self.address = to_checksum_address(data['BTCRelay']['expected_address'])
-        else:
-            LOGGER.error('No deployment file specified!')
-            return __LINE__
-
-        relay = contract_instance('BTCRelay', self.web3, address=self.address)
+        relay = self.dcim.contract_instance('BTCRelay', self.web3)
         getLatestBlockHeight = relay.functions.getLatestBlockHeight
         getBlockHash = relay.functions.getBlockHashReversed
         submit = relay.functions.submit
@@ -56,8 +51,8 @@ class CmdFetchd(Cmd):
             try:
                 contractHeight: int = getLatestBlockHeight().call()
                 contractHash: bytes = getBlockHash(contractHeight).call()
-                btcHeight = self.btc.getblockcount()
-                btcTipHash = self.btc.getblockhash(btcHeight)
+                btcHeight = self.poly.height()
+                btcTipHash = self.poly.height2hash(btcHeight)
 
                 LOGGER.debug('BTCRelay height %d (%s)',
                              contractHeight, bytes2revhex(contractHash))
@@ -75,7 +70,7 @@ class CmdFetchd(Cmd):
                 startHeight = contractHeight
                 while True:
                     contractHash = getBlockHash(startHeight).call()
-                    btcTipHash = self.btc.getblockhash(startHeight)
+                    btcTipHash = self.poly.height2hash(startHeight)
                     if contractHash == btcTipHash:
                         startHeight += 1
                         break
@@ -88,8 +83,8 @@ class CmdFetchd(Cmd):
                 # Fetch missing/diverged blocks from RPC
                 blocks: list[BitcoinJsonRpc_getblock_t] = []
                 for i in range(startHeight, btcHeight + 1):
-                    btcHash = self.btc.getblockhash(i)
-                    blocks.append(self.btc.getblockheader(btcHash))
+                    btcHash = self.poly.height2hash(i)
+                    blocks.append(self.poly.getheader(btcHash))
                     LOGGER.debug('Adding block to sync: %d %s', i, bytes2revhex(btcHash))
                     if len(blocks) >= self.batch_count:
                         break

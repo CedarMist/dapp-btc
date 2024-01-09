@@ -1,14 +1,37 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import os
+import sys
 import typing
 import logging
 from typing import Literal, Tuple
 from web3 import Web3
 
+class LineImpl(object):
+    def __repr__(self) -> str:
+        try:
+            raise Exception
+        except:
+            return str(sys.exc_info()[2].tb_frame.f_back.f_lineno)  # type: ignore
+
+__LINE__ = LineImpl()
+
+
+logging.basicConfig(format='# %(asctime)s %(module)s %(levelname)s:  %(message)s', level=logging.INFO, handlers=[logging.StreamHandler(sys.stderr)])
+LOGGER = logging.getLogger(__name__)
+
+
 BTC_CHAIN_T = Literal['btc-mainnet', 'btc-testnet','btc-signet', 'ltc-mainnet', 'ltc-testnet', 'doge-mainnet', 'doge-testnet']
 CHAIN_CHOICES: Tuple[BTC_CHAIN_T, ...] = typing.get_args(BTC_CHAIN_T)
 
-SAPPHIRE_CHAIN_T = Literal['sapphire-mainnet', 'sapphire-testnet', 'sapphire-localnet']
+SAPPHIRE_CHAIN_T = Literal['mainnet', 'testnet', 'localnet']
 SAPPHIRE_CHOICES: Tuple[SAPPHIRE_CHAIN_T, ...] = typing.get_args(SAPPHIRE_CHAIN_T)
+
+SAPPHIRE_CHAINS_BY_CHAINID: dict[int,SAPPHIRE_CHAIN_T] = {
+    0x5afe: 'mainnet',
+    0x5aff: 'testnet',
+    0x5afd: 'localnet'
+}
 
 DEFAULT_GAS_PRICE = Web3.to_wei(100, 'gwei')
 
@@ -20,10 +43,12 @@ DEFAULT_GETBLOCK_URLS: dict[BTC_CHAIN_T,str] = {
 }
 
 DEFAULT_SAPPHIRE_RPC_URLS: dict[SAPPHIRE_CHAIN_T,str] = {
-    'sapphire-mainnet': 'https://sapphire.oasis.io',
-    'sapphire-localnet': 'http://127.0.0.1:8545',
-    'sapphire-testnet': 'https://testnet.sapphire.oasis.dev'
+    'mainnet': 'https://sapphire.oasis.io',
+    'localnet': 'http://127.0.0.1:8545',
+    'testnet': 'https://testnet.sapphire.oasis.dev'
 }
+
+CONTRACT_NAME_T = Literal['BTCRelay', 'BtcTxVerifier', 'DogeRelay', 'LTCRelay','BTCDeposit','Helper','LiquidBTC']
 
 DEFAULT_WALLET=os.getenv('BTCRELAY_WALLET', '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80')
 DEFAULT_BTCRPC=os.getenv('BTCRELAY_BTCRPC', None)

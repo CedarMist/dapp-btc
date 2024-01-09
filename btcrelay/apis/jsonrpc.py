@@ -1,12 +1,16 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import json
 from threading import Lock
 from urllib.request import urlopen
 from typing import TypedDict, Optional, Any
 
-JSONRPC_REQUEST_ID = 1
+from ..constants import LOGGER
+
+JSONRPC_REQUEST_ID: int = 1
 JSONRPC_REQUEST_LOCK = Lock()
 
-def _next_request_id():
+def _next_request_id() -> int:
     global JSONRPC_REQUEST_ID
     with JSONRPC_REQUEST_LOCK:
         rid = JSONRPC_REQUEST_ID
@@ -24,13 +28,15 @@ class jsonrpc_Response(TypedDict):
     id: int
 
 
-def jsonrpc(url:str, method:str, params:Optional[list[Any]]=None):
-    input = json.dumps({
+def jsonrpc(url:str, method:str, params:Optional[list[Any]]=None) -> Any:
+    request = {
         "jsonrpc": "2.0",
         "method": method,
         "params": params or [],
         "id": _next_request_id()
-    }).encode()
+    }
+    input = json.dumps(request).encode()
+    LOGGER.debug(f"JSON-RPC {url} id={request['id']} {method} params:{params}")
     with urlopen(url, data=input) as handle:
         output: jsonrpc_Response = json.load(handle)
     if output.get('error', None) is not None:

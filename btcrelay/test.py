@@ -1,3 +1,5 @@
+# SPDX-License-Identifier: Apache-2.0
+
 import os
 import sys
 import json
@@ -8,15 +10,15 @@ from argparse import ArgumentParser
 from bitcoinutils.transactions import Transaction
 from bitcoinutils.keys import P2pkhAddress, P2shAddress
 
-from .cmd import Cmd, LOGGER, __LINE__
-from .constants import DEFAULT_GAS_PRICE
-from .bitcoin import MempoolSpace_Transaction, double_sha256, sha256
-from .contracts import ContractChoice, ContractInfo, contract_instance
+from .cmd import Cmd
+from .constants import DEFAULT_GAS_PRICE, LOGGER, __LINE__
+from .apis.mempoolspace import MempoolSpace_Transaction
+from .contracts import ContractChoice, ContractInfo
 
 
 def test_BtTxVerifier(self:'CmdTest', contract_info:dict[str,ContractInfo]):
-    BtcTxVerifier = contract_instance('BtcTxVerifier', self.web3, contract_info['BtcTxVerifier']['expected_address'])
-    BTCRelay = contract_instance('BTCRelay', self.web3, contract_info['BTCRelay']['expected_address'])
+    BtcTxVerifier = self.dcim.contract_instance('BtcTxVerifier', self.web3, contract_info['BtcTxVerifier']['expected_address'])
+    BTCRelay = self.dcim.contract_instance('BTCRelay', self.web3, contract_info['BTCRelay']['expected_address'])
     height:int = BTCRelay.functions.getLatestBlockHeight().call()
     relay_hash = BTCRelay.functions.getBlockHash(height).call().hex()
     blockhash = self.mempool_space.get_block_hash(height)

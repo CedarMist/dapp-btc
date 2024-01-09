@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: Apache-2.0
 
 pragma solidity ^0.8.0;
 
@@ -23,7 +23,9 @@ contract BTCRelay is AbstractBTCRelay {
             in_isTestnet)
     { }
 
-    function getChainParams() external view returns (ChainParams memory)
+    function getChainParams()
+        external view
+        returns (ChainParams memory)
     {
         if( isTestnet ) {
             return ChainParams({
