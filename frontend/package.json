@@ -1,0 +1,36 @@
+{
+  "name": "btcrelay-frontend",
+  "private": true,
+  "type": "module",
+  "version": "0.0.1",
+  "description": "A simple web component",
+  "scripts": {
+    "dev": "pnpm update-env && vite",
+    "build": "pnpm update-env && tsc && vite build",
+    "preview": "pnpm update-env && vite preview",
+    "typechain-build": "typechain --target=ethers-v6 --out-dir src/contracts --glob '../btcrelay/abi/*.abi'",
+    "update-env": "node scripts/make-vite-env.js"
+  },
+  "keywords": [
+    "x"
+  ],
+  "author": "None",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@oasisprotocol/sapphire-paratime": "^1.2.2",
+    "@typechain/ethers-v6": "^0.5.1",
+    "@types/node": "^20.11.0",
+    "autoprefixer": "^10.4.16",
+    "ethers": "^6.10.0",
+    "exome": "^2.3.3",
+    "lit": "^3.1.1",
+    "postcss": "^8.4.33",
+    "rollup-plugin-minify-html-literals": "^1.2.6",
+    "tailwindcss": "^3.4.1",
+    "ts-lit-plugin": "^2.0.2",
+    "typechain": "^8.3.2",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.11",
+    "vite-plugin-singlefile": "^0.13.5"
+  }
+}

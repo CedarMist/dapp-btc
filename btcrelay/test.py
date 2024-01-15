@@ -1,23 +1,21 @@
 # SPDX-License-Identifier: Apache-2.0
 
-import os
 import sys
-import json
 import random
 from typing import Optional
 from argparse import ArgumentParser
 
-from bitcoinutils.transactions import Transaction
-from bitcoinutils.keys import P2pkhAddress, P2shAddress
+from bitcoinutils.transactions import Transaction  # type: ignore
+from bitcoinutils.keys import P2pkhAddress, P2shAddress  # type: ignore
 
 from .cmd import Cmd
-from .constants import DEFAULT_GAS_PRICE, LOGGER, __LINE__
+from .contracts import ContractInfo
 from .apis.mempoolspace import MempoolSpace_Transaction
-from .contracts import ContractChoice, ContractInfo
+from .constants import CONTRACT_NAMES, DEFAULT_GAS_PRICE, LOGGER, __LINE__, CONTRACT_NAME_T, ContractName
 
 
-def test_BtTxVerifier(self:'CmdTest', contract_info:dict[str,ContractInfo]):
-    BtcTxVerifier = self.dcim.contract_instance('BtcTxVerifier', self.web3, contract_info['BtcTxVerifier']['expected_address'])
+def test_BtTxVerifier(self:'CmdTest', contract_info:dict[CONTRACT_NAME_T,ContractInfo]):
+    TxVerifier = self.dcim.contract_instance('TxVerifier', self.web3, contract_info['TxVerifier']['expected_address'])
     BTCRelay = self.dcim.contract_instance('BTCRelay', self.web3, contract_info['BTCRelay']['expected_address'])
     height:int = BTCRelay.functions.getLatestBlockHeight().call()
     relay_hash = BTCRelay.functions.getBlockHash(height).call().hex()
@@ -71,7 +69,7 @@ def test_BtTxVerifier(self:'CmdTest', contract_info:dict[str,ContractInfo]):
 
     # Verify P2SH transaction on-chain
     p2sh_tx_proof = self.mempool_space.tx_merkleproof(p2sh_tx[1]['txid'])
-    result = BtcTxVerifier.functions.verifiedP2SHPayment(
+    result = TxVerifier.functions.verifiedP2SHPayment(
         0,                                           # minConfirmations
         p2sh_tx_proof['block_height'],               # blockNum
         [                                            # inclusionProof
@@ -88,7 +86,7 @@ def test_BtTxVerifier(self:'CmdTest', contract_info:dict[str,ContractInfo]):
 
     # Verify P2PKH transaction on-chain
     p2pkh_tx_proof = self.mempool_space.tx_merkleproof(p2pkh_tx[1]['txid'])
-    result = BtcTxVerifier.functions.verifiedP2PKHPayment(
+    result = TxVerifier.functions.verifiedP2PKHPayment(
         0,                                            # minConfirmations
         p2pkh_tx_proof['block_height'],               # blockNum
         [                                             # inclusionProof
@@ -109,7 +107,7 @@ def test_BtTxVerifier(self:'CmdTest', contract_info:dict[str,ContractInfo]):
 class CmdTest(Cmd):
     deploy_file: Optional[str]
     gasprice: Optional[int]
-    components: list[ContractChoice] | set[ContractChoice]
+    components: list[CONTRACT_NAME_T]
 
     @classmethod
     def setup(cls, parser: ArgumentParser):
@@ -119,24 +117,14 @@ class CmdTest(Cmd):
         parser.add_argument('-g', '--gasprice', metavar='wei', type=int,
                             default=DEFAULT_GAS_PRICE,
                             help='Specify custom gasPrice in wei for deploy tx (default: 100 gwei)')
-        parser.add_argument('components', nargs='*', type=ContractChoice,
+        parser.add_argument('components', nargs='*', type=ContractName,
                             help='Which on-chain components to test (default: all testable)')
 
     def __call__(self):
-        contract_info:dict[str,ContractInfo] = {}
-        if self.deploy_file:
-            if os.path.exists(self.deploy_file):
-                with open(self.deploy_file, 'r') as handle:
-                    contract_info = json.load(handle)
-                    LOGGER.debug('Loaded previous deployment info for %s from %s',
-                                ','.join(contract_info.keys()),
-                                self.deploy_file)
-            else:
-                LOGGER.error('Cannot find %s', self.deploy_file)
-                return __LINE__
+        contract_info = self.dcim.load()
 
         if not self.components:
-            self.components = list(ContractChoice)
+            self.components = list(CONTRACT_NAMES)
 
-        if ContractChoice.BtcTxVerifier in self.components:
+        if ContractName.TxVerifier in self.components:
             test_BtTxVerifier(self, contract_info)

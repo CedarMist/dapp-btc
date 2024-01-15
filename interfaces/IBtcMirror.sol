@@ -13,6 +13,8 @@ interface IBtcMirror is IERC165 {
     }
     function getChainParams() external view returns (ChainParams memory);
 
+    function getMinConfirmations() external view returns (uint256);
+
     /** @notice Returns the Bitcoin block hash at a specific height. */
     function getBlockHash(uint256 number) external view returns (bytes32);
 

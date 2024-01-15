@@ -7,7 +7,7 @@ with open('btcrelay/requirements.txt') as handle:
 
 setup(
     name='btcrelay',
-    version='2024.1a1',
+    version='2024.1a2',
     description='Command Line for BTCRelay',
     license='MIT',
     package_data={
@@ -32,7 +32,7 @@ setup(
         'Typing :: Typed'
     ],
     entry_points = {'console_scripts': ['btcrelay=btcrelay']},
-    packages=['btcrelay', 'btcrelay.abi', 'btcrelay.deployments'],
+    packages=['btcrelay', 'btcrelay.deployments', 'btcrelay.abi', 'btcrelay.apis'],
     py_modules=['__main__'],
     install_requires=REQUIREMENTS
 )

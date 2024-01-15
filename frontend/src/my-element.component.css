@@ -1,0 +1,8 @@
+div.card {
+    @apply p-8;
+}
+
+button {
+    color: #fff;
+    @apply cursor-pointer rounded-lg border border-transparent bg-[#f9f9f9] px-[1.2em] py-[0.6em] text-base transition-colors duration-[0.25s] hover:border-[#646cff] dark:bg-[#1a1a1a];
+}

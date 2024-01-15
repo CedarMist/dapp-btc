@@ -4,7 +4,6 @@ import sys
 from typing import Callable, Optional
 from argparse import ArgumentParser, Namespace
 
-from bitcoinutils.setup import setup as bitcoinutils_setup  # type: ignore
 from web3 import Web3
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
@@ -14,7 +13,7 @@ from .contracts import sapphire_chain_name, DeployedContractInfoManager
 from .constants import (
     CHAIN_CHOICES, DEFAULT_WALLET, SAPPHIRE_CHAIN_T,
     SAPPHIRE_CHOICES, LOGGER_LEVELS, DEFAULT_SAPPHIRE_RPC_URLS,
-    LOGGER_LEVEL_NAMES_T, LOGGER, BTC_CHAIN_T
+    LOGGER_LEVEL_NAMES_T, LOGGER, BTC_CHAIN_T, __LINE__
 )
 from .apis.poly import PolyAPI
 
@@ -46,18 +45,6 @@ class Cmd(Namespace):
 
         args.dcim = DeployedContractInfoManager(args.chain, args.sapphire)
 
-        # Setup bitcoin utils
-        """
-        if args.chain == 'btc-mainnet':
-            bitcoinutils_setup('mainnet')
-        elif args.chain == 'btc-signet':
-            bitcoinutils_setup('signet')
-        elif args.chain == 'btc-testnet':
-            bitcoinutils_setup('testnet')
-        else:
-            raise RuntimeError(f'Unknown chain: {args.chain}')
-        """
-
         # Configure Sapphire Web3.py
         if not args.sapphire_rpc:
             args.sapphire_rpc = DEFAULT_SAPPHIRE_RPC_URLS[args.sapphire]
@@ -73,10 +60,10 @@ class Cmd(Namespace):
             balance = w3.eth.get_balance(key.address)
         except Exception as ex:
             LOGGER.exception(f'Unable to fetch balance from Web3 RPC: {args.sapphire_rpc}', exc_info=ex)
-            sys.exit(2)
+            sys.exit(__LINE__)
         if balance == 0:
             LOGGER.error("Error! Account %s has 0 balance", key.address,)
-            sys.exit(1)
+            sys.exit(__LINE__)
 
         chain_id = w3.eth.chain_id
         LOGGER.debug('%s chainId:%d account:%s balance:%s',

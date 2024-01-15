@@ -20,7 +20,6 @@ from .constants import (
     DEFAULT_BATCH_COUNT
 )
 
-
 class CmdFetchd(Cmd):
     address: ChecksumAddress
     deploy_file: Optional[TextIOWrapper]
