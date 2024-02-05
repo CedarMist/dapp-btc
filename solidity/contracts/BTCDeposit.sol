@@ -4,7 +4,10 @@ pragma solidity ^0.8.0;
 
 import {ITxVerifier} from "../../interfaces/ITxVerifier.sol";
 import {BtcTxProof} from "../../interfaces/BtcTxProof.sol";
-import {Sapphire} from "./lib/Sapphire.sol";
+import {Sapphire} from "./lib/sapphire/Sapphire.sol";
+import {EthereumUtils} from "./lib/sapphire/EthereumUtils.sol";
+import {EthereumUtils} from "./lib/sapphire/EthereumUtils.sol";
+import {BTCUtils} from "./lib/BTCUtils.sol";
 
 import {IERC721ManyReceiver} from "../../interfaces/IERC721.sol";
 import {IBtcMirror} from "../../interfaces/IBtcMirror.sol";
@@ -15,6 +18,10 @@ import {IUsesBtcRelay} from "../../interfaces/IUsesBtcRelay.sol";
 
 
 contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
+
+    /// Master keys used to derive keypairs are rotated daily
+    uint256 constant private DERIVE_KEY_ROTATION = (60*60*24);
+
     // This struct can be packed into a single 256bit field
     struct DepositInfo {
         uint64 burnHeight;
@@ -30,22 +37,42 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         DepositInfo deposit;
     }
 
+    struct DerivingMasterKey {
+        uint256 timestamp;
+        bytes32 secret;
+    }
+
+
+    // -------------------------------------------------------------------------
+
+
     ITxVerifier private immutable m_verifier;
 
     IBtcMirror private immutable m_mirror;
 
+    mapping(uint256 => DerivingMasterKey) private m_deriving_keys;
+
+    uint256 private m_derive_epoch;
+
     mapping(bytes32 => Keypair) private m_keypairs;
+
+
+    // -------------------------------------------------------------------------
+
 
     constructor( ITxVerifier in_verifier )
     {
         require(in_verifier.supportsInterface(type(ITxVerifier).interfaceId)
              && in_verifier.supportsInterface(type(IUsesBtcRelay).interfaceId),
-             "in_verifier!" );
+                "ERC165!" );
 
         m_verifier = in_verifier;
 
         m_mirror = in_verifier.getBtcRelay();
+
+        internal_rotateDerivingKey();
     }
+
 
     function getBtcRelay()
         external view override
@@ -54,7 +81,8 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         return m_verifier.getBtcRelay();
     }
 
-    function supportsInterface(bytes4 interfaceId)
+
+    function supportsInterface( bytes4 interfaceId )
         external pure
         returns (bool)
     {
@@ -62,6 +90,8 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
             || interfaceId == type(IBTCDeposit).interfaceId
             || interfaceId == type(IUsesBtcRelay).interfaceId;
     }
+
+    // -------------------------------------------------------------------------
 
     /**
      * Create contract-managed keypairs, the public address is only returned
@@ -80,17 +110,94 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         external
         returns (bytes20 out_pubkeyAddress, bytes32 out_keypairId)
     {
-        bytes memory secret = Sapphire.randomBytes(32, "");
+        (out_pubkeyAddress, out_keypairId) = createDerived(in_owner, m_derive_epoch, bytes32(Sapphire.randomBytes(32, "")));
+    }
 
-        (bytes memory pubkey,) = Sapphire.generateKeypair(secret);
+    // -------------------------------------------------------------------------
 
-        out_pubkeyAddress = Sapphire.btcAddress(pubkey);
+    /**
+     * Internal keys are used to derive keys, the seed must be combined with
+     * user input at the time of creation so getting access to the keys won't
+     * reveal the subkeys.
+     */
+    function internal_rotateDerivingKey ()
+        internal
+    {
+        uint256 derive_epoch = m_derive_epoch;
 
-        // Obfuscate the keypair ID, unlinkable without its secret key
-        out_keypairId = keccak256(abi.encodePacked(secret, out_pubkeyAddress));
+        if( m_deriving_keys[derive_epoch].timestamp < (block.timestamp - DERIVE_KEY_ROTATION) )
+        {
+            derive_epoch += 1;
+
+            m_derive_epoch = derive_epoch;
+
+            m_deriving_keys[derive_epoch] = DerivingMasterKey({
+                timestamp: block.timestamp,
+                secret: bytes32(Sapphire.randomBytes(32, ""))
+            });
+        }
+    }
+
+    // -------------------------------------------------------------------------
+
+    function internal_derive(
+        address in_owner,
+        uint256 in_derive_epoch,
+        bytes32 in_derive_seed
+    )
+        internal view
+        returns (bytes32 out_secret, bytes20 out_pubkeyAddress, bytes32 out_keypairId)
+    {
+        DerivingMasterKey memory dk = m_deriving_keys[in_derive_epoch];
+
+        require( dk.timestamp != 0 );
+
+        out_secret = keccak256(abi.encodePacked(dk.secret, in_derive_seed, in_owner, dk.secret));
+
+        (bytes memory pubkey, ) = Sapphire.generateSigningKeyPair(
+            Sapphire.SigningAlg.Secp256k1PrehashedSha256,
+            abi.encodePacked(out_secret)
+        );
+
+        out_pubkeyAddress = BTCUtils.btcAddress(pubkey);
+
+        out_keypairId = keccak256(abi.encodePacked(out_secret, out_pubkeyAddress));
+    }
+
+    // -------------------------------------------------------------------------
+
+    function createDerivedWithoutEpoch (
+        address in_owner,
+        bytes32 in_derive_seed
+    )
+        public
+        returns (
+            bytes20 out_pubkeyAddress,
+            bytes32 out_keypairId,
+            uint256 out_epoch
+        )
+    {
+        out_epoch = m_derive_epoch;
+
+        (out_pubkeyAddress, out_keypairId) = createDerived(in_owner, out_epoch, in_derive_seed);
+    }
+
+    // -------------------------------------------------------------------------
+
+    function createDerived (
+        address in_owner,
+        uint256 in_derive_epoch,
+        bytes32 in_derive_seed
+    )
+        public
+        returns (bytes20 out_pubkeyAddress, bytes32 out_keypairId)
+    {
+        bytes32 secret;
+
+        (secret, out_pubkeyAddress, out_keypairId) = internal_derive(in_owner, in_derive_epoch, in_derive_seed);
 
         m_keypairs[out_keypairId] = Keypair({
-            secret: bytes32(secret),
+            secret: secret,
             btcAddress: out_pubkeyAddress,
             owner: in_owner,
             deposit: DepositInfo({
@@ -100,7 +207,43 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
                 txOutIx: 0
             })
         });
+
+        internal_rotateDerivingKey();
     }
+
+    // -------------------------------------------------------------------------
+
+    function derive( address in_owner, bytes32 in_derive_seed )
+        external view
+        returns (bytes20 out_pubkeyAddress, bytes32 out_keypairId, uint256 out_derive_epoch)
+    {
+        out_derive_epoch = m_derive_epoch;
+
+        (, out_pubkeyAddress, out_keypairId) = internal_derive(in_owner, out_derive_epoch, in_derive_seed);
+    }
+
+    // -------------------------------------------------------------------------
+
+    function depositDerived(
+        address in_owner,
+        uint256 in_derive_epoch,
+        bytes32 in_derive_seed,
+        uint32 in_blockNum,
+        BtcTxProof calldata in_inclusionProof,
+        uint32 in_txOutIx,
+        bytes32 in_keypairId
+    )
+        external
+        returns (uint64 out_sats)
+    {
+        (,bytes32 tmp_keypairId) = createDerived(in_owner, in_derive_epoch, in_derive_seed);
+
+        require( tmp_keypairId == in_keypairId );
+
+        return deposit(in_blockNum, in_inclusionProof, in_txOutIx, in_keypairId);
+    }
+
+    // -------------------------------------------------------------------------
 
     function deposit(
         uint32 blockNum,
@@ -108,7 +251,7 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         uint32 txOutIx,
         bytes32 keypairId
     )
-        external
+        public
         returns (uint64 out_sats)
     {
         Keypair storage kp_storage = m_keypairs[keypairId];
@@ -119,6 +262,7 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         require( kp_mem.btcAddress != bytes20(0), "404" );
 
         // Must not have been burned
+        // If the secret has been revealed, the contract cannot be said to have custody
         require( kp_mem.deposit.burnHeight == 0, "BURNED" );
 
         // Keypairs can only be used once
@@ -143,6 +287,12 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         });
     }
 
+    // -------------------------------------------------------------------------
+
+    /**
+     * Marks a keypair as burned, so that its secret can be recoved in the next block
+     * @param in_keypairId Unique keypair ID
+     */
     function burn(bytes32 in_keypairId)
         external
     {
@@ -153,6 +303,13 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         kp.deposit.burnHeight = uint64(block.number);
     }
 
+    // -------------------------------------------------------------------------
+
+    /**
+     * Deletes the keypair from storage, forever forgetting its secret
+     *
+     * @param in_keypairId Unique keypair ID
+     */
     function purge(bytes32 in_keypairId)
         external
     {
@@ -162,6 +319,8 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
 
         delete m_keypairs[in_keypairId];
     }
+
+    // -------------------------------------------------------------------------
 
     function getSecret(bytes32 in_keypairId)
         external view
@@ -180,6 +339,8 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         out_secret = kp.secret;
     }
 
+    // -------------------------------------------------------------------------
+
     function getMeta(bytes32 in_keypairId)
         external view
         returns (uint64 out_burnHeight, uint64 out_sats)
@@ -194,6 +355,8 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
 
         out_sats = di.sats;
     }
+
+    // -------------------------------------------------------------------------
 
     function safeTransferMany(address in_to, bytes32[] calldata in_keypairId_list)
         external
@@ -230,6 +393,8 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
 
         _checkOnERC721ReceivedMany(prevOwner, in_to, in_keypairId_list, data);
     }
+
+    // -------------------------------------------------------------------------
 
     error ERC721InvalidReceiver(address receiver);
 

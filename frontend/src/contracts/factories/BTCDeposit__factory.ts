@@ -68,6 +68,40 @@ const _abi = [
   {
     inputs: [
       {
+        internalType: "address",
+        name: "in_owner",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "in_derive_epoch",
+        type: "uint256",
+      },
+      {
+        internalType: "bytes32",
+        name: "in_derive_seed",
+        type: "bytes32",
+      },
+    ],
+    name: "createDerived",
+    outputs: [
+      {
+        internalType: "bytes20",
+        name: "out_pubkeyAddress",
+        type: "bytes20",
+      },
+      {
+        internalType: "bytes32",
+        name: "out_keypairId",
+        type: "bytes32",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
         internalType: "uint32",
         name: "blockNum",
         type: "uint32",
@@ -124,6 +158,116 @@ const _abi = [
       },
     ],
     stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "in_owner",
+        type: "address",
+      },
+      {
+        internalType: "uint256",
+        name: "in_derive_epoch",
+        type: "uint256",
+      },
+      {
+        internalType: "bytes32",
+        name: "in_derive_seed",
+        type: "bytes32",
+      },
+      {
+        internalType: "uint32",
+        name: "in_blockNum",
+        type: "uint32",
+      },
+      {
+        components: [
+          {
+            internalType: "bytes",
+            name: "blockHeader",
+            type: "bytes",
+          },
+          {
+            internalType: "bytes32",
+            name: "txId",
+            type: "bytes32",
+          },
+          {
+            internalType: "uint256",
+            name: "txIndex",
+            type: "uint256",
+          },
+          {
+            internalType: "bytes",
+            name: "txMerkleProof",
+            type: "bytes",
+          },
+          {
+            internalType: "bytes",
+            name: "rawTx",
+            type: "bytes",
+          },
+        ],
+        internalType: "struct BtcTxProof",
+        name: "in_inclusionProof",
+        type: "tuple",
+      },
+      {
+        internalType: "uint32",
+        name: "in_txOutIx",
+        type: "uint32",
+      },
+      {
+        internalType: "bytes32",
+        name: "in_keypairId",
+        type: "bytes32",
+      },
+    ],
+    name: "depositDerived",
+    outputs: [
+      {
+        internalType: "uint64",
+        name: "out_sats",
+        type: "uint64",
+      },
+    ],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      {
+        internalType: "address",
+        name: "in_owner",
+        type: "address",
+      },
+      {
+        internalType: "bytes32",
+        name: "in_derive_seed",
+        type: "bytes32",
+      },
+    ],
+    name: "derive",
+    outputs: [
+      {
+        internalType: "bytes20",
+        name: "out_pubkeyAddress",
+        type: "bytes20",
+      },
+      {
+        internalType: "bytes32",
+        name: "out_keypairId",
+        type: "bytes32",
+      },
+      {
+        internalType: "uint256",
+        name: "out_derive_epoch",
+        type: "uint256",
+      },
+    ],
+    stateMutability: "view",
     type: "function",
   },
   {

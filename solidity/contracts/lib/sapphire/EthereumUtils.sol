@@ -2,37 +2,23 @@
 
 pragma solidity ^0.8.0;
 
-library Sapphire {
+import {Sapphire} from "./Sapphire.sol";
 
+struct SignatureRSV {
+    bytes32 r;
+    bytes32 s;
+    uint256 v;
+}
+
+library EthereumUtils {
     uint256 internal constant K256_P =
         0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f;
-
-    uint256 internal constant K256_ORDER =
-        0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141;
 
     // (p+1)//4
     uint256 internal constant K256_P_PLUS_1_OVER_4 =
         0x3fffffffffffffffffffffffffffffffffffffffffffffffffffffffbfffff0c;
 
     address internal constant PRECOMPILE_BIGMODEXP = address(0x5);
-
-    address internal constant RANDOM_BYTES =
-        0x0100000000000000000000000000000000000001;
-
-    address internal constant GENERATE_SIGNING_KEYPAIR =
-        0x0100000000000000000000000000000000000005;
-
-    address internal constant SIGN_DIGEST =
-        0x0100000000000000000000000000000000000006;
-
-    uint internal constant Secp256k1PrehashedSha256 = 5;
-
-    struct SignatureRSV {
-        bytes32 r;
-        bytes32 s;
-        uint256 v;
-    }
-
 
     error expmod_Error();
 
@@ -57,21 +43,12 @@ library Sapphire {
         out = uint256(bytes32(result));
     }
 
-    /// Converts a compressed 33 byte public key
-    function btcAddress(bytes memory compressedPubKey)
-        internal pure
-        returns (bytes20)
-    {
-        require( compressedPubKey.length == 33 && (compressedPubKey[0] == 0x02 || compressedPubKey[0] == 0x03), "NOT PUBKEY!" );
-        return bytes20(uint160(ripemd160(abi.encodePacked(sha256(compressedPubKey)))));
-    }
-
     error k256DeriveY_Invalid_Prefix_Error();
 
     /**
-     * Recover Y coordinate from X coordinate and sign bit
-     * @param prefix 0x02 or 0x03 indicates sign bit of compressed point
-     * @param x X coordinate
+     * @notice Recover Y coordinate from X coordinate and sign bit.
+     * @param prefix 0x02 or 0x03 indicates sign bit of compressed point.
+     * @param x X coordinate.
      */
     function k256DeriveY(uint8 prefix, uint256 x)
         internal
@@ -96,10 +73,10 @@ library Sapphire {
     error k256Decompress_Invalid_Length_Error();
 
     /**
-     * Decompress SEC P256 k1 point
-     * @param pk 33 byte compressed public key
-     * @return x coordinate
-     * @return y coordinate
+     * @notice Decompress SEC P256 k1 point.
+     * @param pk 33 byte compressed public key.
+     * @return x X coordinate.
+     * @return y Y coordinate.
      */
     function k256Decompress(bytes memory pk)
         internal
@@ -114,20 +91,50 @@ library Sapphire {
         y = k256DeriveY(uint8(pk[0]), x);
     }
 
+    function k256PubkeyToEthereumAddress(bytes memory pubkey)
+        internal
+        view
+        returns (address)
+    {
+        (uint256 x, uint256 y) = k256Decompress(pubkey);
+        return toEthereumAddress(x, y);
+    }
+
+    /**
+     * @notice Convert SEC P256 k1 curve point to Ethereum address.
+     * @param x X coordinate.
+     * @param y Y coordinate.
+     * @custom:see https://gavwood.com/paper.pdf (pp. 212)
+     */
+    function toEthereumAddress(uint256 x, uint256 y)
+        internal
+        pure
+        returns (address)
+    {
+        bytes32 digest = keccak256(abi.encodePacked(x, y));
+
+        return address(uint160((uint256(digest) << 96) >> 96));
+    }
+
     error DER_Split_Error();
 
     /**
-     * Extracts the `r` and `s` parameters from a DER encoded ECDSA signature.
+     * @notice Extracts the `r` and `s` parameters from a DER encoded ECDSA
+     * signature.
      *
-     * The signature is an ASN1 encoded SEQUENCE of the variable length `r` and `s` INTEGERs.
+     * The signature is an ASN1 encoded SEQUENCE of the variable length `r` and
+     * `s` INTEGERs.
      *
+     * ```
      * | 0x30 | len(z) | 0x02 | len(r) |  r   | 0x02 | len(s) |  s   | = hex value
      * |  1   |   1    |   1  |   1    | 1-33 |  1   |   1    | 1-33 | = byte length
+     * ```
      *
-     * If the highest bit of either `r` or `s` is set, it will be prefix padded with a zero byte
-     * There is exponentially decreasing probability that either `r` or `s` will be below 32 bytes.
-     * There is a very high probability that either `r` or `s` will be 33 bytes.
-     * This function only works if either `r` or `s` are 256bits or lower.
+     * If the highest bit of either `r` or `s` is set, it will be prefix padded
+     * with a zero byte. There is exponentially decreasing probability that
+     * either `r` or `s` will be below 32 bytes. There is a very high
+     * probability that either `r` or `s` will be 33 bytes. This function only
+     * works if either `r` or `s` are 256bits or lower.
      *
      * @param der DER encoded ECDSA signature
      * @return rsv ECDSA R point X coordinate, and S scalar
@@ -211,46 +218,81 @@ library Sapphire {
         }
     }
 
-    function randomBytes(uint256 numBytes, bytes memory pers)
-        internal view
-        returns (bytes memory)
-    {
-        (bool success, bytes memory entropy) = RANDOM_BYTES.staticcall(
-            abi.encode(numBytes, pers)
-        );
-        require(success, "randomBytes: failed");
-        return entropy;
-    }
+    /**
+     * @notice Convert a Secp256k1PrehashedKeccak256 signature to one accepted
+     * by ecrecover.
+     * @param pubkey 33 byte compressed public key.
+     * @param digest 32 byte pre-hashed message digest.
+     * @param signature ASN.1 DER encoded signature, as returned from
+     * [`Sapphire.sign`](../Sapphire.sol/library.Sapphire.md#sign).
+     * @return pubkeyAddr 20 byte Ethereum address.
+     * @return rsv Ethereum EcDSA RSV signature values.
+     * @custom:see https://gavwood.com/paper.pdf (pp. 206)
+     */
+    function toEthereumSignature(
+        bytes memory pubkey,
+        bytes32 digest,
+        bytes memory signature
+    ) internal view returns (address pubkeyAddr, SignatureRSV memory rsv) {
+        pubkeyAddr = k256PubkeyToEthereumAddress(pubkey);
 
-    function randomBytes32()
-        internal view
-        returns (bytes32)
-    {
-        return bytes32(randomBytes(32, ""));
-    }
+        rsv = splitDERSignature(signature);
 
-    function generateKeypair(bytes memory seed)
-        internal view
-        returns (bytes memory publicKey, bytes memory secretKey)
-    {
-        (bool success, bytes memory keypair) = GENERATE_SIGNING_KEYPAIR
-            .staticcall(abi.encode(Secp256k1PrehashedSha256, seed));
-        require(success, "gen signing keypair: failed");
-        return abi.decode(keypair, (bytes, bytes));
+        recoverV(pubkeyAddr, digest, rsv);
     }
 
     function sign(
-        bytes memory secretKey,
-        bytes memory contextOrHash,
-        bytes memory message
-    )
-        internal view
-        returns (bytes memory signature)
-    {
-        (bool success, bytes memory sig) = SIGN_DIGEST.staticcall(
-            abi.encode(Secp256k1PrehashedSha256, secretKey, contextOrHash, message)
+        address pubkeyAddr,
+        bytes32 secretKey,
+        bytes32 digest
+    ) internal view returns (SignatureRSV memory rsv) {
+        bytes memory signature = Sapphire.sign(
+            Sapphire.SigningAlg.Secp256k1PrehashedKeccak256,
+            abi.encodePacked(secretKey),
+            abi.encodePacked(digest),
+            ""
         );
-        require(success, "sign: failed");
-        return sig;
+
+        rsv = splitDERSignature(signature);
+
+        recoverV(pubkeyAddr, digest, rsv);
+    }
+
+    /**
+     * @notice Generate an Ethereum compatible SEC P256 k1 keypair and
+     * corresponding public address.
+     * @return pubkeyAddr Ethereum address.
+     * @return secretKey Secret key used for signing.
+     */
+    function generateKeypair(bytes32 in_secret)
+        internal
+        view
+        returns (address pubkeyAddr, bytes32 secretKey)
+    {
+        secretKey = in_secret;
+
+        (bytes memory pk, ) = Sapphire.generateSigningKeyPair(
+            Sapphire.SigningAlg.Secp256k1PrehashedKeccak256,
+            abi.encodePacked(in_secret)
+        );
+
+        pubkeyAddr = k256PubkeyToEthereumAddress(pk);
+    }
+
+    function generateKeypair()
+        internal
+        view
+        returns (address pubkeyAddr, bytes32 secretKey)
+    {
+        bytes memory randSeed = Sapphire.randomBytes(32, "");
+
+        secretKey = bytes32(randSeed);
+
+        (bytes memory pk, ) = Sapphire.generateSigningKeyPair(
+            Sapphire.SigningAlg.Secp256k1PrehashedKeccak256,
+            randSeed
+        );
+
+        pubkeyAddr = k256PubkeyToEthereumAddress(pk);
     }
 }

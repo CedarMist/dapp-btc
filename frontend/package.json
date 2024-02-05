@@ -12,11 +12,15 @@
     "update-env": "node scripts/make-vite-env.js"
   },
   "keywords": [
-    "x"
+    "bitcoin",
+    "oasis",
+    "sapphire",
+    "cross-chain"
   ],
   "author": "None",
   "license": "Apache-2.0",
   "devDependencies": {
+    "@akamfoad/qrcode": "^0.3.1",
     "@oasisprotocol/sapphire-paratime": "^1.2.2",
     "@typechain/ethers-v6": "^0.5.1",
     "@types/node": "^20.11.0",
@@ -26,6 +30,7 @@
     "lit": "^3.1.1",
     "postcss": "^8.4.33",
     "rollup-plugin-minify-html-literals": "^1.2.6",
+    "rollup-plugin-visualizer": "^5.12.0",
     "tailwindcss": "^3.4.1",
     "ts-lit-plugin": "^2.0.2",
     "typechain": "^8.3.2",

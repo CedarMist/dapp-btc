@@ -1,4 +1,4 @@
-import { Eip1193Provider } from "./1193";
+import { EIP1193Provider } from "./1193";
 
 /// https://eips.ethereum.org/EIPS/eip-6963
 export interface EIP6963ProviderInfo {
@@ -12,7 +12,7 @@ export interface EIP6963ProviderInfo {
 /// https://eips.ethereum.org/EIPS/eip-6963
 export interface EIP6963ProviderDetail {
     info: EIP6963ProviderInfo;
-    provider: Eip1193Provider;
+    provider: EIP1193Provider;
 }
 
 

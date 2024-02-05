@@ -48,7 +48,10 @@ export interface BTCDepositInterface extends Interface {
     nameOrSignature:
       | "burn"
       | "create"
+      | "createDerived"
       | "deposit"
+      | "depositDerived"
+      | "derive"
       | "getBtcRelay"
       | "getMeta"
       | "getSecret"
@@ -60,8 +63,28 @@ export interface BTCDepositInterface extends Interface {
   encodeFunctionData(functionFragment: "burn", values: [BytesLike]): string;
   encodeFunctionData(functionFragment: "create", values: [AddressLike]): string;
   encodeFunctionData(
+    functionFragment: "createDerived",
+    values: [AddressLike, BigNumberish, BytesLike]
+  ): string;
+  encodeFunctionData(
     functionFragment: "deposit",
     values: [BigNumberish, BtcTxProofStruct, BigNumberish, BytesLike]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "depositDerived",
+    values: [
+      AddressLike,
+      BigNumberish,
+      BytesLike,
+      BigNumberish,
+      BtcTxProofStruct,
+      BigNumberish,
+      BytesLike
+    ]
+  ): string;
+  encodeFunctionData(
+    functionFragment: "derive",
+    values: [AddressLike, BytesLike]
   ): string;
   encodeFunctionData(
     functionFragment: "getBtcRelay",
@@ -84,7 +107,16 @@ export interface BTCDepositInterface extends Interface {
 
   decodeFunctionResult(functionFragment: "burn", data: BytesLike): Result;
   decodeFunctionResult(functionFragment: "create", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "createDerived",
+    data: BytesLike
+  ): Result;
   decodeFunctionResult(functionFragment: "deposit", data: BytesLike): Result;
+  decodeFunctionResult(
+    functionFragment: "depositDerived",
+    data: BytesLike
+  ): Result;
+  decodeFunctionResult(functionFragment: "derive", data: BytesLike): Result;
   decodeFunctionResult(
     functionFragment: "getBtcRelay",
     data: BytesLike
@@ -153,6 +185,16 @@ export interface BTCDeposit extends BaseContract {
     "nonpayable"
   >;
 
+  createDerived: TypedContractMethod<
+    [
+      in_owner: AddressLike,
+      in_derive_epoch: BigNumberish,
+      in_derive_seed: BytesLike
+    ],
+    [[string, string] & { out_pubkeyAddress: string; out_keypairId: string }],
+    "nonpayable"
+  >;
+
   deposit: TypedContractMethod<
     [
       blockNum: BigNumberish,
@@ -162,6 +204,32 @@ export interface BTCDeposit extends BaseContract {
     ],
     [bigint],
     "nonpayable"
+  >;
+
+  depositDerived: TypedContractMethod<
+    [
+      in_owner: AddressLike,
+      in_derive_epoch: BigNumberish,
+      in_derive_seed: BytesLike,
+      in_blockNum: BigNumberish,
+      in_inclusionProof: BtcTxProofStruct,
+      in_txOutIx: BigNumberish,
+      in_keypairId: BytesLike
+    ],
+    [bigint],
+    "nonpayable"
+  >;
+
+  derive: TypedContractMethod<
+    [in_owner: AddressLike, in_derive_seed: BytesLike],
+    [
+      [string, string, bigint] & {
+        out_pubkeyAddress: string;
+        out_keypairId: string;
+        out_derive_epoch: bigint;
+      }
+    ],
+    "view"
   >;
 
   getBtcRelay: TypedContractMethod<[], [string], "view">;
@@ -207,6 +275,17 @@ export interface BTCDeposit extends BaseContract {
     "nonpayable"
   >;
   getFunction(
+    nameOrSignature: "createDerived"
+  ): TypedContractMethod<
+    [
+      in_owner: AddressLike,
+      in_derive_epoch: BigNumberish,
+      in_derive_seed: BytesLike
+    ],
+    [[string, string] & { out_pubkeyAddress: string; out_keypairId: string }],
+    "nonpayable"
+  >;
+  getFunction(
     nameOrSignature: "deposit"
   ): TypedContractMethod<
     [
@@ -217,6 +296,34 @@ export interface BTCDeposit extends BaseContract {
     ],
     [bigint],
     "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "depositDerived"
+  ): TypedContractMethod<
+    [
+      in_owner: AddressLike,
+      in_derive_epoch: BigNumberish,
+      in_derive_seed: BytesLike,
+      in_blockNum: BigNumberish,
+      in_inclusionProof: BtcTxProofStruct,
+      in_txOutIx: BigNumberish,
+      in_keypairId: BytesLike
+    ],
+    [bigint],
+    "nonpayable"
+  >;
+  getFunction(
+    nameOrSignature: "derive"
+  ): TypedContractMethod<
+    [in_owner: AddressLike, in_derive_seed: BytesLike],
+    [
+      [string, string, bigint] & {
+        out_pubkeyAddress: string;
+        out_keypairId: string;
+        out_derive_epoch: bigint;
+      }
+    ],
+    "view"
   >;
   getFunction(
     nameOrSignature: "getBtcRelay"

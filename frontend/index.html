@@ -7,10 +7,16 @@
     <link rel="stylesheet" href="./src/index.css" />
     <script type="module" src="/src/my-element.ts"></script>
   </head>
-  <body class="m-0 flex min-h-screen min-w-[320px] place-items-center bg-white text-[#213547] dark:bg-[#242424] dark:text-[rgba(255,255,255,0.87)]">
-    <my-element class="mx-auto max-w-7xl p-8 text-center">
-      <h1 class="text-[3.2em] font-bold">Vite + Lit</h1>
-    </my-element>
-    <code class="text-[#888]">%VITE_PACKAGE_NAME% v%VITE_PACKAGE_VERSION% git:%VITE_GIT_COMMIT_SHORT_HASH% git.date:%VITE_GIT_COMMIT_DATE% btc:%VITE_BTC_NET% sapphire:%VITE_SAPPHIRE_NET%</code>
+  <body class="bg-white text-[#213547] dark:bg-[#242424] dark:text-[rgba(255,255,255,0.87)]">
+    <div class="container mx-auto flex flex-col items-center px-4 py-16 text-center md:py-32 md:px-10 lg:px-32 xl:max-w-3xl">
+      <div>
+        <my-element>
+          <h1 class="text-[3.2em] font-bold">Vite + Lit</h1>
+        </my-element>
+        <div>
+          <code class="text-[#888]">%VITE_PACKAGE_NAME% v%VITE_PACKAGE_VERSION% git:%VITE_GIT_COMMIT_SHORT_HASH% git.date:%VITE_GIT_COMMIT_DATE% btc:%VITE_BTC_NET% sapphire:%VITE_SAPPHIRE_NET%</code>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

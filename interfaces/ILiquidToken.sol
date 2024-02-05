@@ -13,4 +13,10 @@ interface ILiquidToken is IERC721ManyReceiver, IERC165, IERC20, IERC20Metadata, 
     function getMinDenomination() external view returns (uint256);
 
     function getMaxDenomination() external view returns (uint256);
+
+    function withdrawFrom( address in_account, uint in_sats ) external returns (bytes32[] memory out_utxoIdList);
+
+    function withdraw( uint sats ) external returns (bytes32[] memory out_utxoIdList);
+
+    function getBucketCounts( uint[] calldata in_buckets ) external view returns (uint256[] memory out);
 }

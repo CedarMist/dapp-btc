@@ -1,13 +1,12 @@
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
 from typing import Callable, Optional
 from argparse import ArgumentParser, Namespace
 
 from web3 import Web3
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
-from web3.middleware import construct_sign_and_send_raw_middleware
+from web3.middleware.signing import construct_sign_and_send_raw_middleware
 
 from .contracts import sapphire_chain_name, DeployedContractInfoManager
 from .constants import (
@@ -19,7 +18,7 @@ from .apis.poly import PolyAPI
 
 class Cmd(Namespace):
     loglevel: LOGGER_LEVEL_NAMES_T
-    func: Callable[['Cmd'],None]
+    func: Callable[['Cmd'],int]
     web3: Web3
     key: LocalAccount
     btc_rpc_url: Optional[str]
@@ -31,7 +30,7 @@ class Cmd(Namespace):
     dcim: DeployedContractInfoManager
 
     @classmethod
-    def run(cls, args:'Cmd'):
+    def run(cls, args:'Cmd') -> int:
         """
         Post-processing of commandline arguments
         Ensures RPC endpoints & wallets are active etc.
@@ -60,10 +59,10 @@ class Cmd(Namespace):
             balance = w3.eth.get_balance(key.address)
         except Exception as ex:
             LOGGER.exception(f'Unable to fetch balance from Web3 RPC: {args.sapphire_rpc}', exc_info=ex)
-            sys.exit(__LINE__)
+            return __LINE__()
         if balance == 0:
             LOGGER.error("Error! Account %s has 0 balance", key.address,)
-            sys.exit(__LINE__)
+            return __LINE__()
 
         chain_id = w3.eth.chain_id
         LOGGER.debug('%s chainId:%d account:%s balance:%s',
@@ -73,7 +72,7 @@ class Cmd(Namespace):
         return args.func(args)
 
     @classmethod
-    def setup(cls, parser:ArgumentParser):
+    def setup(cls, parser:ArgumentParser) -> None:
         parser.add_argument('--loglevel', metavar='level',
                             choices=LOGGER_LEVELS.keys(), default='info',
                             help="Logging level, don't display below this level (%s)" % (', '.join(LOGGER_LEVELS.keys())))
@@ -89,7 +88,7 @@ class Cmd(Namespace):
         parser.set_defaults(func=cls.__call__)
 
 
-def arg_eth(url:str):
+def arg_eth(url:str) -> Web3:
     if url.startswith(('http', 'https')):
         return Web3(Web3.HTTPProvider(url))
     elif url.startswith(('ws', 'wss')):

@@ -5,6 +5,8 @@ pragma solidity ^0.8.0;
 import {IERC165} from "../../../interfaces/IERC165.sol";
 import {IBtcMirror} from "../../../interfaces/IBtcMirror.sol";
 import {IUsesBtcRelay} from "../../../interfaces/IUsesBtcRelay.sol";
+import {Endian} from "./Endian.sol";
+
 
 abstract contract AbstractRelay is IERC165, IBtcMirror, IUsesBtcRelay {
     // -------------------------------------------------------------------------
@@ -91,7 +93,7 @@ abstract contract AbstractRelay is IERC165, IBtcMirror, IUsesBtcRelay {
         public view
         returns (bytes32)
     {
-        return bytes32(swap256(uint256(getBlockHashReversed(in_height))));
+        return bytes32(Endian.reverse256(uint256(getBlockHashReversed(in_height))));
     }
 
     /**
@@ -164,7 +166,7 @@ abstract contract AbstractRelay is IERC165, IBtcMirror, IUsesBtcRelay {
 
                 for( uint i = in_height; i <= main_height; i++ )
                 {
-                    cumulativeWork_main += swap256(uint256(m_heightToHash[i]));
+                    cumulativeWork_main += Endian.reverse256(uint256(m_heightToHash[i]));
 
                     if( i >= new_height )
                     {
@@ -203,7 +205,7 @@ abstract contract AbstractRelay is IERC165, IBtcMirror, IUsesBtcRelay {
                 // Check proof of work meets target
                 // and Keep track of cumulative PoW for replacement chain
                 {
-                    uint256 blockHash_swapped = swap256(uint256(currentHash));
+                    uint256 blockHash_swapped = Endian.reverse256(uint256(currentHash));
 
                     cumulativeWork_thisFork += blockHash_swapped;
 
@@ -269,55 +271,17 @@ abstract contract AbstractRelay is IERC165, IBtcMirror, IUsesBtcRelay {
         }
     }
 
-    /// reverse 4 bytes given by value
-    function endianSwap32(uint32 input)
-        internal pure
-        returns (uint32 v)
-    {
-        // swap bytes
-        v = ((input & 0xFF00FF00) >> 8) | ((input & 0x00FF00FF) << 8);
-
-        // swap 2-byte long pairs
-        v = (v >> 16) | (v << 16);
-    }
-
-    function swap256(uint256 input)
-        internal pure
-        returns (uint256 v)
-    {
-        v = input;
-
-        // swap bytes
-        uint256 pat1 = 0xFF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00FF00;
-        v = ((v & pat1) >> 8) | ((v & ~pat1) << 8);
-
-        // swap 2-byte long pairs
-        uint256 pat2 = 0xFFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000FFFF0000;
-        v = ((v & pat2) >> 16) | ((v & ~pat2) << 16);
-
-        // swap 4-byte long pairs
-        uint256 pat4 = 0xFFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000FFFFFFFF00000000;
-        v = ((v & pat4) >> 32) | ((v & ~pat4) << 32);
-
-        // swap 8-byte long pairs
-        uint256 pat8 = 0xFFFFFFFFFFFFFFFF0000000000000000FFFFFFFFFFFFFFFF0000000000000000;
-        v = ((v & pat8) >> 64) | ((v & ~pat8) << 64);
-
-        // swap 16-byte long pairs
-        v = (v >> 128) | (v << 128);
-    }
-
     function BlockHeader_hash(BlockHeader calldata h)
         internal pure
         returns (bytes32 out_blockHash)
     {
         out_blockHash = dblSha(abi.encodePacked(
-            endianSwap32(h.version),  // Not required in storage
+            Endian.reverse32(h.version),  // Not required in storage
             h.previousblockhash,
             h.merkleroot,
-            endianSwap32(h.time), // Required in storage
-            endianSwap32(h.bits), // Required in storage
-            endianSwap32(h.nonce) // Not required in storage
+            Endian.reverse32(h.time), // Required in storage
+            Endian.reverse32(h.bits), // Required in storage
+            Endian.reverse32(h.nonce) // Not required in storage
         ));
     }
 }

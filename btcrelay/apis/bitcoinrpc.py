@@ -1,10 +1,17 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import struct
-from typing import TypedDict, Optional, Literal
+from typing import Any, TypedDict, Optional, Literal, cast
 
 from .jsonrpc import jsonrpc
 from ..bitcoin import double_sha256, merkle_build, hex2revbytes, bytes2revhex
+from ..constants import DEFAULT_BTC_RPC_URLS
+
+def regtest(method, *args):
+    return jsonrpc(DEFAULT_BTC_RPC_URLS['btc-regtest'], method, args)
+
+JSON_ENCODABLE_PRIMITIVE = str | int | bytes | None
+JSON_ENCODABLE = JSON_ENCODABLE_PRIMITIVE | dict[str|int,JSON_ENCODABLE_PRIMITIVE] | list[JSON_ENCODABLE_PRIMITIVE]
 
 class BitcoinJsonRpc_getblockheader_t(TypedDict):
     bits: str
@@ -31,7 +38,7 @@ class BitcoinJsonRpc_getblock_t(BitcoinJsonRpc_getblockheader_t):
     weight: int
 
 
-def serialize_header(block:BitcoinJsonRpc_getblock_t):
+def serialize_header(block:BitcoinJsonRpc_getblock_t) -> bytes:
     o = struct.pack('<I32s32sIII',
                     block['version'],
                     block['previousblockhash'],
@@ -46,7 +53,7 @@ def serialize_header(block:BitcoinJsonRpc_getblock_t):
     return o
 
 
-def parse_getblockheader_t(result:dict):
+def parse_getblockheader_t(result:dict[str,Any]) -> None:
     result['hash'] = hex2revbytes(result['hash'])
     result['previousblockhash'] = hex2revbytes(result['previousblockhash'])
     result['merkleroot'] = hex2revbytes(result['merkleroot'])
@@ -57,7 +64,7 @@ def parse_getblockheader_t(result:dict):
         result['nextblockhash'] = hex2revbytes(result['nextblockhash'])
 
 
-def parse_getblock_t(result:dict):
+def parse_getblock_t(result:dict[str,Any]) -> None:
     parse_getblockheader_t(result)
     result['tx'] = [hex2revbytes(_) for _ in result['tx']]
 
@@ -78,10 +85,10 @@ class BitcoinJsonRpc_getchaintips_t(TypedDict):
 
 
 class BitcoinJsonRpc:
-    def __init__(self, endpoint_url):
+    def __init__(self, endpoint_url:str):
         self.endpoint_url = endpoint_url
 
-    def _request(self, method:str, params:Optional[list]=None):
+    def _request(self, method:str, params:Optional[list[JSON_ENCODABLE]]=None) -> Any:
         return jsonrpc(self.endpoint_url, method, params)
 
     def getchaintips(self) -> list[BitcoinJsonRpc_getchaintips_t]:
@@ -91,19 +98,16 @@ class BitcoinJsonRpc:
         return tips
 
     def uptime(self) -> int:
-        return self._request('uptime')
+        return cast(int, self._request('uptime'))
 
     def getblockcount(self) -> int:
-        return self._request('getblockcount')
+        return cast(int, self._request('getblockcount'))
 
     def getblockhash(self, height:int) -> bytes:
         return hex2revbytes(self._request('getblockhash', [height]))
 
-    def doge_getinfo(self):
-        return self._request('getinfo')
-
     def getrawtransaction(self, txid:str, blockhash:Optional[str]=None) -> bytes:
-        return self._request('getrawtransaction', [txid, False, blockhash])
+        return bytes.fromhex(self._request('getrawtransaction', [txid, False, blockhash]))
 
     def getblockheader(self, blockhash:str|bytes) -> BitcoinJsonRpc_getblock_t:
         if isinstance(blockhash, bytes):
@@ -111,7 +115,7 @@ class BitcoinJsonRpc:
         verbosity = True
         result = self._request('getblockheader', [blockhash, verbosity])
         parse_getblockheader_t(result)
-        return result
+        return cast(BitcoinJsonRpc_getblock_t, result)
 
     def getblock(self, blockhash:str|bytes) -> BitcoinJsonRpc_getblock_t:
         if isinstance(blockhash, bytes):
@@ -119,8 +123,8 @@ class BitcoinJsonRpc:
         verbosity = 1  # includes tx hashes
         result = self._request('getblock', [blockhash, verbosity])
         parse_getblock_t(result)
-        return result
+        return cast(BitcoinJsonRpc_getblock_t, result)
 
     def getblockraw(self, blockhash:str) -> str:
         verbosity = 0  # returns raw hex encoded block
-        return self._request('getblock', [blockhash, verbosity])
+        return cast(str, self._request('getblock', [blockhash, verbosity]))

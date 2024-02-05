@@ -37,7 +37,7 @@ class ContractInfo(TypedDict):
     tx: TxParams
     max_fee: int
     expected_address: ChecksumAddress
-    constructor_args: list
+    constructor_args: list[Any]
     account_address: ChecksumAddress
     account_nonce: int
     deployed: Optional[DeployedInfo]
@@ -60,7 +60,7 @@ class CompilerMeta(TypedDict):
 
 
 class Encoder(json.JSONEncoder):
-    def default(self, o):
+    def default(self, o:Any) -> Any:
         if isinstance(o, HexBytes):
             return o.hex()
         if isinstance(o, bytes):
@@ -90,13 +90,13 @@ class DeployedContractInfoManager:
 
     def token_name(self) -> CONTRACT_NAME_T:
         match self._chain:
-            case 'btc-mainnet' | 'btc-testnet':
+            case 'btc-mainnet' | 'btc-testnet' | 'btc-regtest':
                 return 'LiquidBTC'
         assert_never(self._chain)
 
     def relay_name(self) -> CONTRACT_NAME_T:
         match self._chain:
-            case 'btc-mainnet' | 'btc-testnet':
+            case 'btc-mainnet' | 'btc-testnet' | 'btc-regtest':
                 return 'BTCRelay'
         assert_never(self._chain)
 

@@ -21,6 +21,7 @@
       "experimentalDecorators": true,
       "forceConsistentCasingInFileNames": true,
       "noImplicitOverride": true,
+      "useDefineForClassFields": false,
       "plugins": [
         {
           "name": "ts-lit-plugin",

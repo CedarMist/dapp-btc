@@ -13,7 +13,6 @@ from .apis.bitcoinrpc import BitcoinJsonRpc_getblock_t
 from .bitcoin import bytes2revhex
 from .constants import (
     LOGGER,
-    __LINE__,
     DEFAULT_BTCRELAY_ADDR,
     DEFAULT_SLEEP_TIME,
     DEFAULT_GAS_PRICE,
@@ -26,7 +25,7 @@ class CmdFetchd(Cmd):
     batch_count: int
 
     @classmethod
-    def setup(cls, parser:ArgumentParser):
+    def setup(cls, parser:ArgumentParser) -> None:
         super().setup(parser)
         parser.add_argument('-f', '--deploy-file', metavar='path', type=FileType('r'),
                             help='Read BTCRelay contract address from a file')
@@ -37,7 +36,8 @@ class CmdFetchd(Cmd):
                             help='BTCRelay contract address (env: BTCRELAY_ADDR)',
                             default=DEFAULT_BTCRELAY_ADDR)
 
-    def __call__(self):
+    def __call__(self) -> int:
+        sleep_time = 5 if self.chain == 'btc-regtest' else DEFAULT_SLEEP_TIME
         relay_name = self.dcim.relay_name()
         relay = self.dcim.contract_instance(relay_name, self.web3)
         getLatestBlockHeight = relay.functions.getLatestBlockHeight
@@ -59,8 +59,8 @@ class CmdFetchd(Cmd):
 
                 if contractHeight == btcHeight and contractHash == btcTipHash:
                     LOGGER.debug('No blocks to sync, sleeping %d seconds',
-                                 DEFAULT_SLEEP_TIME)
-                    sleep(DEFAULT_SLEEP_TIME)  # delay a few minutes
+                                 sleep_time)
+                    sleep(sleep_time)  # delay a few minutes
                     continue
 
                 # Work backwards to findcommon block hash and height

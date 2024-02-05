@@ -1,9 +1,11 @@
+// SPDX-License-Identifier: Apache-2.0
+
 import { Exome } from "exome";
 
 import { EIP6963AnnounceProviderEvent, EIP6963ProviderDetail, EIP6963ProviderInfo } from "./eip/6963.js";
-import { Eip1193Provider, ProviderInfo, ProviderMessage } from './eip/1193.js'
+import { EIP1193Provider, EIP1193ProviderInfo, EIP1193ProviderMessage } from './eip/1193.js'
 
-import ethereumSvg from './ethereum-eth-logo.svg?raw';
+import defaultEIP1193LogoSvg from './default-eip1193-logo.svg?raw';
 
 const NETWORK_NAMES: {[key: number]: string} = {
     1: 'Ethereum (Mainnet)',
@@ -18,7 +20,7 @@ export class ProviderManagerStore extends Exome
     private _chainId? : number;
     private _accounts? : string[];
     private _info: EIP6963ProviderInfo;
-    private _provider: Eip1193Provider;
+    private _provider: EIP1193Provider;
 
     constructor (in_detail: EIP6963ProviderDetail)
     {
@@ -80,8 +82,11 @@ export class ProviderManagerStore extends Exome
 
     _setChainId(chainId?: string) {
         if( chainId ) {
-            this._chainId = parseInt(chainId);
-            console.log('ChainChanged', this._info, this._chainId);
+            const chainIdInt = parseInt(chainId);
+            if( this._chainId != chainIdInt ) {
+                this._chainId = parseInt(chainId);
+                console.log('ChainChanged', this._info, this._chainId);
+            }
         }
         else {
             this._chainId = undefined;
@@ -114,7 +119,7 @@ export class ProviderManagerStore extends Exome
         return true;
     }
 
-    private async _onConnect(info: ProviderInfo) {
+    private async _onConnect(info: EIP1193ProviderInfo) {
         this._setChainId(info.chainId);
         this._setAccounts(await this._provider.request({method: 'eth_accounts'}));
     }
@@ -125,7 +130,7 @@ export class ProviderManagerStore extends Exome
         this._accounts = undefined;
     }
 
-    private async _onMessage(message: ProviderMessage) {
+    private async _onMessage(message: EIP1193ProviderMessage) {
         console.log('Message', this._info, message);
     }
 
@@ -153,6 +158,16 @@ class ProvidersStore extends Exome
         window.addEventListener('DOMContentLoaded', this._onDOMContentLoaded.bind(this));
     }
 
+    public get mode() {
+        if( this.isEIP1193 ) {
+            return 'EIP-1193';
+        }
+        else if( this.isEIP6963 ) {
+            return 'EIP-6963';
+        }
+        return undefined;
+    }
+
     public async _onAnnounceProvider( event: EIP6963AnnounceProviderEvent )
     {
         const { info } = event.detail;
@@ -164,7 +179,7 @@ class ProvidersStore extends Exome
             {
                 const p = this.providers.get('window.ethereum')!;
 
-                p.dispose();
+                p.dispose();    // Disconnect event handlers
 
                 this.isEIP6963 = true;
 
@@ -191,7 +206,7 @@ class ProvidersStore extends Exome
                 info: {
                     uuid: 'window.ethereum',
                     name: 'window.ethereum (EIP-1193)',
-                    icon: 'data:image/svg+xml,' + encodeURIComponent(ethereumSvg),
+                    icon: 'data:image/svg+xml,' + encodeURIComponent(defaultEIP1193LogoSvg),
                     rdns: 'window.ethereum'
                 },
                 provider: window.ethereum as any

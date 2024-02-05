@@ -2,7 +2,7 @@
 
 import json
 from urllib.request import urlopen
-from typing import Any, TypedDict, Literal, Optional
+from typing import Any, TypedDict, Literal, Optional, cast
 
 from ..constants import BTC_CHAIN_T
 
@@ -88,13 +88,13 @@ class MempoolSpaceAPI:
         with urlopen(url) as handle:
             if handle.status != 200:
                 raise MempoolspaceError(url, handle.status)
-            return handle.read()
+            return cast(bytes, handle.read())
 
     def address_utxos(self, address:str) -> list[MempoolSpace_UTXO]:
-        return self._request_json('address', address, 'utxo')
+        return cast(list[MempoolSpace_UTXO], self._request_json('address', address, 'utxo'))
 
     def block_transactions(self, blockhash:str) -> list[MempoolSpace_Transaction]:
-        return self._request_json('block', blockhash, 'txs')
+        return cast(list[MempoolSpace_Transaction], self._request_json('block', blockhash, 'txs'))
 
     def get_block_hash(self, height:int) -> str:
         return self._request_str('block-height', height)
@@ -103,8 +103,7 @@ class MempoolSpaceAPI:
         return self._request_str('block', blockhash, 'header')
 
     def tx_merkleproof(self, txid:str) -> MempoolSpace_MerkleProof:
-        return self._request_json('tx', txid, 'merkle-proof')
+        return cast(MempoolSpace_MerkleProof, self._request_json('tx', txid, 'merkle-proof'))
 
     def tx_hex(self, txid:str) -> str:
         return self._request_str('tx', txid, 'hex')
-

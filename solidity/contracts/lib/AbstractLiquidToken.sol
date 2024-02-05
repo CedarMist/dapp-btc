@@ -4,29 +4,34 @@ pragma solidity ^0.8.0;
 
 import {IERC721ManyReceiver} from "../../../interfaces/IERC721.sol";
 import {IBTCDeposit} from "../../../interfaces/IBTCDeposit.sol";
-import {Sapphire} from "./Sapphire.sol";
+import {Sapphire} from "./sapphire/Sapphire.sol";
 import {IERC165} from "../../../interfaces/IERC165.sol";
 import {IERC20} from "../../../interfaces/IERC20.sol";
+import {IERC2771} from "../../../interfaces/IERC2771.sol";
 import {IERC20Metadata} from "../../../interfaces/IERC20Metadata.sol";
 import {IERC20Burnable} from "../../../interfaces/IERC20Burnable.sol";
 import {IBtcMirror} from "../../../interfaces/IBtcMirror.sol";
 import {IUsesBtcRelay} from "../../../interfaces/IUsesBtcRelay.sol";
 import {ILiquidToken} from "../../../interfaces/ILiquidToken.sol";
 import {AbstractERC20} from "./AbstractERC20.sol";
+import {Allowances} from "./Allowances.sol";
 
 
 abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
 {
+    using Allowances for Allowances.Data;
+
     mapping(uint256 => bytes32[]) private m_utxoBuckets;
 
-    IBTCDeposit private immutable m_manager;
+    IBTCDeposit private immutable m_btcDeposit;
 
-    constructor (IBTCDeposit in_manager)
+    constructor (IBTCDeposit in_btcDeposit, address in_2771Forwarder)
+        AbstractERC20(in_2771Forwarder)
     {
-        require( in_manager.supportsInterface(type(IBTCDeposit).interfaceId)
-              && in_manager.supportsInterface(type(IUsesBtcRelay).interfaceId) );
+        require( in_btcDeposit.supportsInterface(type(IBTCDeposit).interfaceId)
+              && in_btcDeposit.supportsInterface(type(IUsesBtcRelay).interfaceId) );
 
-        m_manager = in_manager;
+        m_btcDeposit = in_btcDeposit;
     }
 
     // IERC165
@@ -41,6 +46,10 @@ abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
             || interfaceId == type(IERC20Metadata).interfaceId
             || interfaceId == type(IERC20Burnable).interfaceId
             || interfaceId == type(IERC165).interfaceId
+            // IERC2771 comes via AbstractERC20
+            // XXX: 'Linearization of inheritance graph impossible' with 'is IERC2771'
+            // XXX: supportsInterface inheritence sucks in Solidity
+            || interfaceId == type(IERC2771).interfaceId
             ;
     }
 
@@ -49,8 +58,23 @@ abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
         external view override
         returns (IBtcMirror)
     {
-        return m_manager.getBtcRelay();
+        return m_btcDeposit.getBtcRelay();
     }
+
+    // AbstractLiquidToken
+    function internal_getDenominationMask() virtual internal pure returns (uint256);
+
+    // AbstractLiquidToken
+    function internal_getChangeMask() virtual internal pure returns (uint256);
+
+    // AbstractLiquidToken
+    function internal_getDenominationBitCount() virtual internal pure returns (uint256);
+
+    // ILiquidToken
+    function getMinDenomination() virtual public pure returns (uint256);
+
+    // ILiquidToken
+    function getMaxDenomination() virtual public pure returns (uint256);
 
     function _isPowerOfTwo( uint256 u )
         internal pure
@@ -59,21 +83,15 @@ abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
         return (u & (u - 1)) == 0;
     }
 
-    function _getDenominationMask() virtual internal pure returns (uint256);
-    function _getChangeMask() virtual internal pure returns (uint256);
-    function _getDenominationBitCount() virtual internal pure returns (uint256);
-    function getMinDenomination() virtual public pure returns (uint256);
-    function getMaxDenomination() virtual public pure returns (uint256);
-
     /// Deposits must be exact power of 2 within the denomination mask bit range
     /// Bits below the denomination mask are allowed (effectively ignored)
     /// No bits higher than the denomination mask can be set
-    function _isValidDenomination( uint256 sats )
+    function internal_isValidDenomination( uint256 sats )
         internal pure
         returns (bool)
     {
-        return _isPowerOfTwo(sats & _getDenominationMask())
-            && ((sats & (_getChangeMask()|_getDenominationMask())) == sats);
+        return _isPowerOfTwo(sats & internal_getDenominationMask())
+            && ((sats & (internal_getChangeMask()|internal_getDenominationMask())) == sats);
     }
 
     // IERC721ManyReceiver
@@ -87,7 +105,7 @@ abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
         external
         returns(bytes4)
     {
-        require( msg.sender == address(m_manager), "NOTMGR" );
+        require( internal_msgSender() == address(m_btcDeposit), "NOTMGR" );
 
         require( in_tokenId_list.length > 0, "NOTOKENS" );
 
@@ -99,11 +117,11 @@ abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
         {
             uint256 sats = in_sat_list[i];
 
-            require( _isValidDenomination(sats), "UTXO!=POW2+CHANGE" );
-
-            uint256 bucket = sats & _getDenominationMask();
+            require( internal_isValidDenomination(sats), "UTXO!=POW2+CHANGE" );
 
             // Change below the minimum denomination is quietly ignored
+            uint256 bucket = sats & internal_getDenominationMask();
+
             mintSats += bucket;
 
             m_utxoBuckets[bucket].push(in_tokenId_list[i]);
@@ -111,11 +129,12 @@ abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
 
         require( mintSats > 0, "ZEROSATS" );
 
-        _mint(in_from, mintSats);
+        internal_mint(in_from, mintSats);
 
         return IERC721ManyReceiver.onERC721ReceivedMany.selector;
     }
 
+    /// Remove a random UTXO from the bucket (of the given denomination)
     function _popRandomUTXO( uint bucket )
         internal
         returns (bytes32)
@@ -141,6 +160,9 @@ abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
         return chosenKeypair;
     }
 
+    // IERC20Burnable
+    /// Retrieve the UTXO count for each power-of-two bucket
+    /// Buckets are specified as integers, e.g. 2**8, 2**16
     function getBucketCounts( uint[] calldata in_buckets )
         external view
         returns (uint256[] memory out)
@@ -167,31 +189,35 @@ abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
         withdrawFrom(in_account, in_value);
     }
 
+    // ILiquidToken
     function withdrawFrom( address in_account, uint in_sats )
         public
         returns (bytes32[] memory out_utxoIdList)
     {
-        m_allowances[in_account][msg.sender] -= in_sats;
+        m_allowances.sub(in_account, internal_msgSender(), in_sats);
 
         return internal_withdraw(in_account, in_sats);
     }
 
+    // ILiquidToken
     function withdraw( uint sats )
         public
         returns (bytes32[] memory out_utxoIdList)
     {
-        return internal_withdraw(msg.sender, sats);
+        return internal_withdraw(internal_msgSender(), sats);
     }
 
+    /// Convert liquid token back into coins of underlying asset
     function internal_withdraw( address in_account, uint sats )
         public
         returns (bytes32[] memory out_utxoIdList)
     {
-        require( (sats & _getDenominationMask()) == sats, "MASK!" );
+        // Withdrawing will output one coin per bit within the range
+        require( (sats & internal_getDenominationMask()) == sats, "MASK!" );
 
-        _burn(in_account, sats);
+        internal_burn(in_account, sats);
 
-        out_utxoIdList = new bytes32[](_getDenominationBitCount());
+        out_utxoIdList = new bytes32[](internal_getDenominationBitCount());
 
         // Pay out one power of 2 token per bit in the input
         uint j = 0;
@@ -212,6 +238,6 @@ abstract contract AbstractLiquidToken is ILiquidToken, AbstractERC20
         }
 
         // Transfer to msg.sender, to handle burnFrom/withdrawFrom etc.
-        m_manager.safeTransferMany(msg.sender, out_utxoIdList);
+        m_btcDeposit.safeTransferMany(internal_msgSender(), out_utxoIdList);
     }
 }

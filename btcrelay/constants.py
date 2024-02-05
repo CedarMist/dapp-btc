@@ -9,11 +9,21 @@ from typing import Literal, Tuple
 from web3 import Web3
 
 class LineImpl(object):
-    def __repr__(self) -> str:
+    def __call__(self) -> int:
         try:
             raise Exception
         except:
-            return str(sys.exc_info()[2].tb_frame.f_back.f_lineno)  # type: ignore
+            if (ei := sys.exc_info()[2]) is not None:
+                if (tb_frame := ei.tb_frame) is not None:
+                    if (f_back := tb_frame.f_back) is not None:
+                        return f_back.f_lineno
+            raise RuntimeError('Cannot get lineno from traceback')
+
+    def __repr__(self) -> str:
+        return str(self())
+
+    def __str__(self) -> str:
+        return self.__repr__()
 
 __LINE__ = LineImpl()
 
@@ -22,9 +32,13 @@ logging.basicConfig(format='# %(asctime)s %(module)s %(levelname)s:  %(message)s
 LOGGER = logging.getLogger(__name__)
 
 
-BTC_CHAIN_T = Literal['btc-mainnet', 'btc-testnet']
+BTC_CHAIN_T = Literal['btc-mainnet', 'btc-testnet', 'btc-regtest']
 CHAIN_CHOICES: Tuple[BTC_CHAIN_T, ...] = typing.get_args(BTC_CHAIN_T)
-
+DEFAULT_BTC_RPC_URLS: dict[BTC_CHAIN_T,str] = {
+    'btc-mainnet': 'https://go.getblock.io/0012d6e2a94942d7acefe23d4ffcb127',
+    'btc-testnet': 'https://go.getblock.io/dc53faa553904edab52312240d6f8a0e',
+    'btc-regtest': ('http://127.0.0.1:18443', ('user','pass'))
+}
 
 SAPPHIRE_CHAIN_T = Literal['mainnet', 'testnet', 'localnet']
 SAPPHIRE_CHOICES: Tuple[SAPPHIRE_CHAIN_T, ...] = typing.get_args(SAPPHIRE_CHAIN_T)
@@ -36,18 +50,13 @@ SAPPHIRE_CHAINS_BY_CHAINID: dict[int,SAPPHIRE_CHAIN_T] = {
 
 DEFAULT_GAS_PRICE = Web3.to_wei(100, 'gwei')
 
-DEFAULT_GETBLOCK_URLS: dict[BTC_CHAIN_T,str] = {
-    'btc-mainnet': 'https://go.getblock.io/f8f103b600fb4a869de196e970c65fd1',
-    'btc-testnet': 'https://go.getblock.io/818286a585854c5e9bdf73fdd560b49a',
-}
-
 DEFAULT_SAPPHIRE_RPC_URLS: dict[SAPPHIRE_CHAIN_T,str] = {
     'mainnet': 'https://sapphire.oasis.io',
     'testnet': 'https://testnet.sapphire.oasis.dev',
     'localnet': 'http://127.0.0.1:8545',
 }
 
-CONTRACT_NAME_T = Literal['BTCRelay', 'TxVerifier', 'BTCDeposit', 'Helper', 'LiquidBTC']
+CONTRACT_NAME_T = Literal['BTCRelay', 'TxVerifier', 'BTCDeposit', 'Helper', 'LiquidBTC', 'Multicall3']
 CONTRACT_NAMES: Tuple[CONTRACT_NAME_T, ...] = typing.get_args(CONTRACT_NAME_T)
 
 class ContractName(enum.StrEnum):
@@ -56,13 +65,14 @@ class ContractName(enum.StrEnum):
     BTCDeposit = 'BTCDeposit'
     Helper = 'Helper'
     LiquidBTC = 'LiquidBTC'
+    Multicall3 = 'Multicall3'
     def __str__(self) -> str:
         return self.value
 
 DEFAULT_WALLET=os.getenv('BTCRELAY_WALLET', '0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80')
 DEFAULT_BTCRPC=os.getenv('BTCRELAY_BTCRPC', None)
 
-# Other RPC providers:
+# Other RPC providers ?
 # - https://www.allthatnode.com/
 # - https://tatum.io/
 

@@ -5,7 +5,9 @@ import minifyHTML from 'rollup-plugin-minify-html-literals';
 
 import { readFile } from 'node:fs/promises';
 import { execSync } from 'node:child_process';
-import svgLoader from 'vite-svg-loader'
+
+import { visualizer } from 'rollup-plugin-visualizer';
+
 
 const package_json = JSON.parse(await readFile('package.json', {encoding: 'utf-8'}));
 
@@ -19,5 +21,17 @@ process.env.VITE_GIT_COMMIT_HASH = commitHash;
 process.env.VITE_GIT_COMMIT_SHORT_HASH = commitHash.slice(0, 16);
 
 export default defineConfig({
-    plugins: [viteSingleFile(), minifyHTML.default()],
+    build: {
+        sourcemap: false
+    },
+    plugins: [
+        viteSingleFile({
+            removeViteModuleLoader: true,
+        }),
+        minifyHTML.default(),
+        visualizer({
+            sourcemap: false,
+            gzipSize: true
+        }),
+    ],
 });

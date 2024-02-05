@@ -10,6 +10,7 @@ $(BUILD_DIR)/BTCDeposit.bin: $(SOLC) $(wildcard $(CONTRACTS_DIR)/*.sol $(CONTRAC
 	rm -rf "$(dir $@)"
 	mkdir -p "$(dir $@)"
 	$(SOLC) -o "$(dir $@)" $(SOLC_OPTS) $(wildcard $(CONTRACTS_DIR)/*.sol)
+	find "$(dir $@)" -name '*.bin' -size 0 | xargs rm  # Remove empty .bin files
 
 clean:
 	rm -rf $(BUILD_DIR)

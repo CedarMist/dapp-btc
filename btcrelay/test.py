@@ -11,10 +11,10 @@ from bitcoinutils.keys import P2pkhAddress, P2shAddress  # type: ignore
 from .cmd import Cmd
 from .contracts import ContractInfo
 from .apis.mempoolspace import MempoolSpace_Transaction
-from .constants import CONTRACT_NAMES, DEFAULT_GAS_PRICE, LOGGER, __LINE__, CONTRACT_NAME_T, ContractName
+from .constants import CONTRACT_NAMES, DEFAULT_GAS_PRICE, LOGGER, CONTRACT_NAME_T, ContractName
 
 
-def test_BtTxVerifier(self:'CmdTest', contract_info:dict[CONTRACT_NAME_T,ContractInfo]):
+def test_BtTxVerifier(self:'CmdTest', contract_info:dict[CONTRACT_NAME_T,ContractInfo]) -> None:
     TxVerifier = self.dcim.contract_instance('TxVerifier', self.web3, contract_info['TxVerifier']['expected_address'])
     BTCRelay = self.dcim.contract_instance('BTCRelay', self.web3, contract_info['BTCRelay']['expected_address'])
     height:int = BTCRelay.functions.getLatestBlockHeight().call()
@@ -110,7 +110,7 @@ class CmdTest(Cmd):
     components: list[CONTRACT_NAME_T]
 
     @classmethod
-    def setup(cls, parser: ArgumentParser):
+    def setup(cls, parser: ArgumentParser) -> None:
         super().setup(parser)
         parser.add_argument('-f', '--deploy-file', metavar='path.json', type=str,
                             help='Read contract deployment info from file (JSON)')
@@ -120,7 +120,7 @@ class CmdTest(Cmd):
         parser.add_argument('components', nargs='*', type=ContractName,
                             help='Which on-chain components to test (default: all testable)')
 
-    def __call__(self):
+    def __call__(self) -> int:
         contract_info = self.dcim.load()
 
         if not self.components:
@@ -128,3 +128,5 @@ class CmdTest(Cmd):
 
         if ContractName.TxVerifier in self.components:
             test_BtTxVerifier(self, contract_info)
+
+        return 0

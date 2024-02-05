@@ -2,9 +2,8 @@
 
 from typing import Optional, TypedDict
 
-from ..constants import BTC_CHAIN_T, DEFAULT_GETBLOCK_URLS, LOGGER
-from .bitcoinrpc import BitcoinJsonRpc
-from .dogechaininfo import DogechainInfoAPI
+from ..constants import BTC_CHAIN_T, DEFAULT_BTC_RPC_URLS
+from .bitcoinrpc import BitcoinJsonRpc, BitcoinJsonRpc_getblock_t
 from .mempoolspace import MempoolSpaceAPI
 
 
@@ -26,7 +25,6 @@ class PolyAPI:
     """
     _chain:BTC_CHAIN_T
     _mempoolspace:Optional[MempoolSpaceAPI]
-    _dogeinfo:Optional[DogechainInfoAPI]
     _bitcoinrpc:BitcoinJsonRpc
 
     def __init__(self, chain:BTC_CHAIN_T, custom_btc_rpc_url:Optional[str]):
@@ -36,14 +34,10 @@ class PolyAPI:
         if chain in ('btc-mainnet', 'btc-testnet'):
             self._mempoolspace = MempoolSpaceAPI(chain)
 
-        # Dogechain.info only works for mainnet
-        if chain == 'doge-mainnet':
-            self._dogeinfo = DogechainInfoAPI(chain)
-
         # Setup Bitcoin RPC node
         if not custom_btc_rpc_url:
-            if chain in DEFAULT_GETBLOCK_URLS:
-                btc_rpc_url = DEFAULT_GETBLOCK_URLS[chain]
+            if chain in DEFAULT_BTC_RPC_URLS:
+                btc_rpc_url = DEFAULT_BTC_RPC_URLS[chain]
             else:
                 raise PolyAPIError(f'No Getblock.io JSON-RPC endpoint for chain: {chain}')
         else:
@@ -51,20 +45,7 @@ class PolyAPI:
 
         self._bitcoinrpc = BitcoinJsonRpc(btc_rpc_url)
 
-        if not self._chain.startswith('doge-'):
-            LOGGER.debug('%s node.uptime:%.02f url:%s',
-                        self._chain,
-                        self._bitcoinrpc.uptime() / 60 / 60 / 24,
-                        btc_rpc_url)
-        else:
-            info = self._bitcoinrpc.doge_getinfo()
-            LOGGER.debug('%s version:%d proto:%d url:%s',
-                        self._chain,
-                        info['version'],
-                        info['protocolversion'],
-                        btc_rpc_url)
-
-    def getheader(self, block_hash:str|bytes):
+    def getheader(self, block_hash:str|bytes) -> BitcoinJsonRpc_getblock_t:
         return self._bitcoinrpc.getblockheader(block_hash)
 
     def height(self) -> int:

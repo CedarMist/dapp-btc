@@ -1,6 +1,6 @@
 /// <reference types="vite/client" />
 
-import { Eip1193Provider } from "./eip/1193.js";
+import { EIP1193Provider } from "./eip/1193.js";
 
 interface ImportMetaEnv {
     readonly VITE_BTCRelay_ADDR: `0x${string}`
@@ -17,6 +17,6 @@ interface ImportMeta {
 
 declare global {
     interface Window {
-        ethereum: Eip1193Provider;
+        ethereum: EIP1193Provider;
     }
 }

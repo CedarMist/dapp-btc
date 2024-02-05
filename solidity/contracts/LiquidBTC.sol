@@ -19,33 +19,38 @@ contract LiquidBTC is AbstractLiquidToken
     uint256 constant private DENOMINATION_MASK = ((MAX_DENOMINATION<<1)-1) ^ CHANGE_MASK;   // 2.68427264 BTC, 0b1111111111111110000000000000, 0xfffe000
     uint256 constant private DENOM_MASK_BIT_COUNT = (MAX_SHL+1)-MIN_SHL;                    // 15 == bin(DENOMINATION_MASK).count('1')
 
-    function _getDenominationMask() override internal pure returns (uint256)
+    // AbstractLiquidToken
+    function internal_getDenominationMask() override internal pure returns (uint256)
     {
         return DENOMINATION_MASK;
     }
 
-    function _getChangeMask() override internal pure returns (uint256)
+    // AbstractLiquidToken
+    function internal_getChangeMask() override internal pure returns (uint256)
     {
         return CHANGE_MASK;
     }
 
-    function _getDenominationBitCount() override internal pure returns (uint256)
+    // AbstractLiquidToken
+    function internal_getDenominationBitCount() override internal pure returns (uint256)
     {
         return DENOM_MASK_BIT_COUNT;
     }
 
+    // AbstractLiquidToken
     function getMinDenomination() override public pure returns (uint256)
     {
         return MIN_DENOMINATION;
     }
 
+    // AbstractLiquidToken
     function getMaxDenomination() override public pure returns (uint256)
     {
         return MAX_DENOMINATION;
     }
 
-    constructor(IBTCDeposit in_manager)
-        AbstractLiquidToken(in_manager)
+    constructor(IBTCDeposit in_manager, address in_2771Forwarder)
+        AbstractLiquidToken(in_manager, in_2771Forwarder)
     { }
 
     // IERC20Metadata
