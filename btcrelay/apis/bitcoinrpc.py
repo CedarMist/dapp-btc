@@ -103,6 +103,15 @@ class BitcoinJsonRpc:
     def getblockcount(self) -> int:
         return cast(int, self._request('getblockcount'))
 
+    def gettxout(self, txid:str|bytes, out_idx:int):
+        if isinstance(txid, bytes):
+            txid = bytes2revhex(txid)
+        return self._request('gettxout', [txid, out_idx])
+
+    def gettxoutproof(self, txids:list[str|bytes]):
+        txids = [bytes2revhex(_) for _ in txids]
+        return self._request('gettxoutproof', [txids])
+
     def getblockhash(self, height:int) -> bytes:
         return hex2revbytes(self._request('getblockhash', [height]))
 
@@ -117,10 +126,12 @@ class BitcoinJsonRpc:
         parse_getblockheader_t(result)
         return cast(BitcoinJsonRpc_getblock_t, result)
 
-    def getblock(self, blockhash:str|bytes) -> BitcoinJsonRpc_getblock_t:
+    def getblock(self, blockhash:str|bytes, verbose=False) -> BitcoinJsonRpc_getblock_t:
         if isinstance(blockhash, bytes):
             blockhash = bytes2revhex(blockhash)
         verbosity = 1  # includes tx hashes
+        if verbose:
+            verbosity = 2
         result = self._request('getblock', [blockhash, verbosity])
         parse_getblock_t(result)
         return cast(BitcoinJsonRpc_getblock_t, result)

@@ -4,7 +4,7 @@ from btcrelay.apis.bitcoinrpc import regtest
 
 def main():
     bal = regtest('getbalance')
-    print('Balance', bal, )
+    print('# Balance', bal, )
     try:
         addr = input('Address: ').strip()
     except KeyboardInterrupt:

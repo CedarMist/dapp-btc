@@ -45,8 +45,17 @@ class PolyAPI:
 
         self._bitcoinrpc = BitcoinJsonRpc(btc_rpc_url)
 
-    def getheader(self, block_hash:str|bytes) -> BitcoinJsonRpc_getblock_t:
-        return self._bitcoinrpc.getblockheader(block_hash)
+    def gettxout(self, txid:str|bytes, out_idx:int):
+        return self._bitcoinrpc.gettxout(txid, out_idx)
+
+    def gettxoutproof(self, txids:list[str|bytes]):
+        return self._bitcoinrpc.gettxoutproof(txids)
+
+    def getblock(self, blockhash:str|bytes, verbose=False):
+        return self._bitcoinrpc.getblock(blockhash, verbose=verbose)
+
+    def getheader(self, blockhash:str|bytes) -> BitcoinJsonRpc_getblock_t:
+        return self._bitcoinrpc.getblockheader(blockhash)
 
     def height(self) -> int:
         return self._bitcoinrpc.getblockcount()

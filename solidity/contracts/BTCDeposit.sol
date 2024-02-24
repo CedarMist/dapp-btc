@@ -108,9 +108,13 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
      */
     function create( address in_owner )
         external
-        returns (bytes20 out_pubkeyAddress, bytes32 out_keypairId)
+        returns (
+            bytes20 out_pubkeyAddress,
+            bytes32 out_keypairId,
+            uint256 out_minConfirmations
+        )
     {
-        (out_pubkeyAddress, out_keypairId) = createDerived(in_owner, m_derive_epoch, bytes32(Sapphire.randomBytes(32, "")));
+        (out_pubkeyAddress, out_keypairId, out_minConfirmations) = createDerived(in_owner, m_derive_epoch, bytes32(Sapphire.randomBytes(32, "")));
     }
 
     // -------------------------------------------------------------------------
@@ -174,12 +178,15 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         returns (
             bytes20 out_pubkeyAddress,
             bytes32 out_keypairId,
-            uint256 out_epoch
+            uint256 out_epoch,
+            uint256 out_minConfirmations
         )
     {
         out_epoch = m_derive_epoch;
 
-        (out_pubkeyAddress, out_keypairId) = createDerived(in_owner, out_epoch, in_derive_seed);
+        (out_pubkeyAddress, out_keypairId, out_minConfirmations) = createDerived(in_owner, out_epoch, in_derive_seed);
+
+
     }
 
     // -------------------------------------------------------------------------
@@ -190,7 +197,10 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         bytes32 in_derive_seed
     )
         public
-        returns (bytes20 out_pubkeyAddress, bytes32 out_keypairId)
+        returns (
+            bytes20 out_pubkeyAddress,
+            bytes32 out_keypairId,
+            uint256 out_minConfirmations)
     {
         bytes32 secret;
 
@@ -207,6 +217,8 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
                 txOutIx: 0
             })
         });
+
+        out_minConfirmations = m_mirror.getMinConfirmations();
 
         internal_rotateDerivingKey();
     }
@@ -236,7 +248,7 @@ contract BTCDeposit is IERC165, IUsesBtcRelay, IBTCDeposit {
         external
         returns (uint64 out_sats)
     {
-        (,bytes32 tmp_keypairId) = createDerived(in_owner, in_derive_epoch, in_derive_seed);
+        (,bytes32 tmp_keypairId,) = createDerived(in_owner, in_derive_epoch, in_derive_seed);
 
         require( tmp_keypairId == in_keypairId );
 

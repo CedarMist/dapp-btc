@@ -17,7 +17,7 @@ interface IBTCDeposit is IERC165, IUsesBtcRelay {
 
     function create( address in_owner )
         external
-        returns (bytes20 out_btcAddress, bytes32 out_keypairId);
+        returns (bytes20 out_btcAddress, bytes32 out_keypairId, uint256 out_minConfirmations);
 
     function deposit(
         uint32 blockNum,

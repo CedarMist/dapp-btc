@@ -29,6 +29,9 @@ clean: python-clean
 
 python: python-mypy python-wheel
 
+python-requirements:
+	$(PYTHON) -mpip install --user --break-system-packages -U --upgrade-strategy eager -r $(PYMOD)/requirements.txt
+
 python-clean:
 	rm -rf *.egg-info dist build .mypy_cache
 	rm -rf "$(PYMOD)/__pycache__" "$(PYMOD)/deployments/__pycache__"
@@ -43,6 +46,10 @@ python-wheel: python-clean solidity
 $(REGTEST_LOCALNET_JSON): solidity
 	rm -f $@
 	$(PYTHON) -m$(PYMOD) deploy -y --sapphire localnet --chain btc-regtest --loglevel debug
+
+deploy-localnet:
+	rm -f $(REGTEST_LOCALNET_JSON)
+	$(MAKE) $(REGTEST_LOCALNET_JSON)
 
 debug-btc: $(REGTEST_LOCALNET_JSON)
 	$(PYTHON) -m$(PYMOD) fetchd --sapphire localnet --chain btc-regtest --loglevel debug

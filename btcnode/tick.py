@@ -15,8 +15,8 @@ def main():
     addr = addrs[0]['address']
     del addrs
 
-    if regtest('getbalances') == 0:
-        regtest('generatetoaddress', 101, addr)
+    if regtest('getbalance') == 0:
+        regtest('generatetoaddress', 500, addr)
 
     while True:
         #print('Tick', addr, regtest('getbalances'))

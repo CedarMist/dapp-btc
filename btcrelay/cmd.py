@@ -3,6 +3,8 @@
 from typing import Callable, Optional
 from argparse import ArgumentParser, Namespace
 
+from bitcoinutils.setup import setup as bitcoinutils_setup
+
 from web3 import Web3
 from eth_account import Account
 from eth_account.signers.local import LocalAccount
@@ -39,6 +41,7 @@ class Cmd(Namespace):
         LOGGER.setLevel(LOGGER_LEVELS[args.loglevel])
 
         args.is_testnet = 'mainnet' not in args.chain
+        bitcoinutils_setup(args.chain.removeprefix('btc-'))
 
         args.poly = PolyAPI(args.chain, args.btc_rpc_url)
 

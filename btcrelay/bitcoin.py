@@ -28,5 +28,7 @@ def hex2revbytes(x:bytes|str) -> bytes:
     return bytes.fromhex(x)[::-1]
 
 
-def bytes2revhex(x:bytes) -> str:
-    return x[::-1].hex()
+def bytes2revhex(x:str|bytes) -> str:
+    if isinstance(x, bytes):
+        return x[::-1].hex()
+    return x

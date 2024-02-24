@@ -42,7 +42,7 @@ contract Helper is IUsesBtcRelay {
 
             bytes20 z = bytes20(keccak256(abi.encodePacked(y)));
 
-            (bytes20 addr, bytes32 kpid) = m_deposit.create(in_owner);
+            (bytes20 addr, bytes32 kpid, uint256 minconfs) = m_deposit.create(in_owner);
 
             emit OnCreated(tag, addr ^ bytes20(y), kpid ^ z);
         }
